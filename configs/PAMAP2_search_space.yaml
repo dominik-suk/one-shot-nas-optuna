@@ -1,0 +1,57 @@
+input: [256, 52]
+output: 6
+
+sequence:
+  - block: "conv_1"
+    op_candidates: "conv1d"
+    type_repeat:
+      type: "vary_all"
+      depth: [1, 2, 3]
+
+  - block: "pool_1"
+    op_candidates: ["maxpool", "identity"]
+
+  - block: "conv_2"
+    op_candidates: ["conv1d", "identity"]
+    type_repeat:
+      type: "vary_all"
+      depth: [1, 2, 3]
+
+  - block: "lstm"
+    op_candidates: ["lstm", "identity"]
+
+  - block: "dropout"
+    op_candidates: ["dropout", "gaussian_dropout", "identity"]
+
+  - block: "linear"
+    op_candidates: ["linear", "identity"]
+    type_repeat:
+      type: "vary_all"
+      depth: [1, 2]
+
+default_op_params:
+  conv1d:
+    kernel_size: [3, 5, 7, 9]
+    stride: [1, 2]
+    out_channels: [32, 64, 128, 256]
+    padding: "same"
+
+  maxpool:
+    kernel_size: [2, 4]
+    stride: [2, 4]
+
+  lstm:
+    hidden_size: [64, 128]
+    num_layers: [1, 2]
+    bidirectional: [True, False]
+    batch_first: True
+
+  linear:
+    width: [64, 128, 256]
+    activation: ["relu", "tanh"]
+
+  dropout:
+    p: [0.1, 0.3, 0.5]
+
+  gaussian_dropout:
+    p: [0.1, 0.3]
