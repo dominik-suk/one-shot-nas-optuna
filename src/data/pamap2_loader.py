@@ -38,7 +38,7 @@ class Pamap2Dataset(Dataset):
 
     SPLITS = {
         'train': ['subject101.dat', 'subject102.dat', 'subject103.dat', 'subject104.dat', 'subject107.dat', 'subject108.dat'],
-        'validation': ['subject105.dat'],
+        'validation': ['subject105.dat'], # todo: maybe use two? or leave one subject out cross val LOOCV
         'test': ['subject106.dat'],
     }
 
@@ -59,7 +59,13 @@ class Pamap2Dataset(Dataset):
         self.mean = mean
         self.std = std
 
-        self.valid_ids = sorted(list(self._ALL_ACTIVITIES.keys()))
+        if self.activity_type == Pamap2ActivityType.PROTOCOL:
+            self.valid_ids = sorted(list(self._PROTOCOL_ACTIVITIES))
+        elif self.activity_type == Pamap2ActivityType.ADL:
+            self.valid_ids = sorted(list(self._ACTIVITIES_OF_DAILY_LIVING))
+        else:
+            self.valid_ids = sorted(list(self._ALL_ACTIVITIES))
+
         self.id_to_index = {activity_id: index for index, activity_id in enumerate(self.valid_ids)}
 
         self.protocol_dir = os.path.join(root, 'PAMAP2_Dataset', 'Protocol')
@@ -86,6 +92,7 @@ class Pamap2Dataset(Dataset):
         window_labels = self.labels[start_index:end_index]
 
         x = self.features[start_index:end_index]
+        x = x.transpose(0, 1)
         y = torch.mode(window_labels).values
 
         return x, y
