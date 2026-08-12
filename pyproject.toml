@@ -4,6 +4,7 @@ version = "0.1.0"
 description = "An implementation of the Single Path One-Shot with Uniform Sampling (SPOS) Neural Architecture Search algorithm using the Optuna framework."
 requires-python = ">=3.12"
 dependencies = [
+    "optuna>=4.9.0",
     "pandas>=3.0.5",
     "pandas-stubs~=3.0.5",
     "torch>=2.13.0",
