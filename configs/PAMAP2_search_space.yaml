@@ -1,5 +1,5 @@
 input: [256, 52]
-output: 6
+output: 12
 
 sequence:
   - block: "conv_1"
@@ -33,7 +33,7 @@ default_op_params:
   conv1d:
     kernel_size: [3, 5, 7, 9]
     stride: [1, 2]
-    out_channels: [32, 64, 128, 256]
+    out_channels: [32, 64, 128]
     padding: "same"
 
   maxpool:
@@ -47,11 +47,11 @@ default_op_params:
     batch_first: True
 
   linear:
-    width: [64, 128, 256]
+    width: [64, 128]
     activation: ["relu", "tanh"]
 
   dropout:
-    p: [0.1, 0.3, 0.5]
+    p: [0.3, 0.5, 0.7]
 
   gaussian_dropout:
-    p: [0.1, 0.3]
+    p: [0.3, 0.5, 0.7]
