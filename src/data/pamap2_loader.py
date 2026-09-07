@@ -33,15 +33,11 @@ class Pamap2Dataset(Dataset):
             split: str,
             activity_type: Pamap2ActivityType,
             sequence_length: int,
-            mean: torch.Tensor = None,
-            std: torch.Tensor = None,
     ):
         self.split = split
         self.activity_type = activity_type
         self.sequence_length = sequence_length
         self.stride = sequence_length // 2
-        self.mean = mean
-        self.std = std
 
         self.valid_ids = sorted(activity_type.valid_ids)
         self.protocol_dir = PAMAP2_DIR / 'PAMAP2_Dataset' / 'Protocol'
@@ -169,16 +165,12 @@ def get_data(
         split='validation',
         activity_type=activity_type,
         sequence_length=sequence_length,
-        mean=train_dataset.mean,
-        std=train_dataset.std,
     )
 
     test_dataset = Pamap2Dataset(
         split='test',
         activity_type=activity_type,
         sequence_length=sequence_length,
-        mean=train_dataset.mean,
-        std=train_dataset.std,
     )
 
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
