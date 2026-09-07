@@ -1,19 +1,16 @@
 import os
 import time
-import torch
+import urllib.request
 import zipfile
+
 import numpy as np
 import pandas as pd
-import urllib.request
-from enum import Enum
-from tqdm import tqdm
+import torch
 from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm
 
-
-class Pamap2ActivityType(Enum):
-    ALL = 'all'
-    PROTOCOL = 'protocol'
-    ADL = 'adl'
+from src.data.pamap2_labels import Pamap2ActivityType
+from src.paths import PAMAP2_DIR, PAMAP2_DATA_LOADERS_DIR
 
 
 class DownloadProgressBar(tqdm):
@@ -25,33 +22,20 @@ class DownloadProgressBar(tqdm):
 
 class Pamap2Dataset(Dataset):
     URL = 'https://archive.ics.uci.edu/static/public/231/pamap2+physical+activity+monitoring.zip'
-
-    _PROTOCOL_ACTIVITIES = {1, 2, 3, 4, 5, 6, 7, 12, 13, 16, 17, 24}
-    _ACTIVITIES_OF_DAILY_LIVING = {1, 2, 3, 4, 12, 13}
-    _ALL_ACTIVITIES = {
-        1: "lying", 2: "sitting", 3: "standing", 4: "walking", 5: "running",
-        6: "cycling", 7: "nordic walking", 9: "watching TV", 10: "computer work",
-        11: "car driving", 12: "ascending stairs", 13: "descending stairs",
-        16: "vacuum cleaning", 17: "ironing", 18: "folding laundry",
-        19: "house cleaning", 20: "playing soccer", 24: "rope jumping",
-    }
-
     SPLITS = {
         'train': ['subject101.dat', 'subject102.dat', 'subject103.dat', 'subject104.dat', 'subject107.dat', 'subject108.dat'],
-        'validation': ['subject105.dat'], # todo: maybe use two? or leave one subject out cross val LOOCV
+        'validation': ['subject105.dat'],
         'test': ['subject106.dat'],
     }
 
     def __init__(
             self,
-            root: str,
             split: str,
             activity_type: Pamap2ActivityType,
             sequence_length: int,
             mean: torch.Tensor = None,
             std: torch.Tensor = None,
     ):
-        self.root = root
         self.split = split
         self.activity_type = activity_type
         self.sequence_length = sequence_length
@@ -59,20 +43,13 @@ class Pamap2Dataset(Dataset):
         self.mean = mean
         self.std = std
 
-        if self.activity_type == Pamap2ActivityType.PROTOCOL:
-            self.valid_ids = sorted(list(self._PROTOCOL_ACTIVITIES))
-        elif self.activity_type == Pamap2ActivityType.ADL:
-            self.valid_ids = sorted(list(self._ACTIVITIES_OF_DAILY_LIVING))
-        else:
-            self.valid_ids = sorted(list(self._ALL_ACTIVITIES))
-
-        self.id_to_index = {activity_id: index for index, activity_id in enumerate(self.valid_ids)}
-
-        self.protocol_dir = os.path.join(root, 'PAMAP2_Dataset', 'Protocol')
-        self.optional_dir = os.path.join(root, 'PAMAP2_Dataset', 'Optional')
-        self.processed_file = os.path.join(root, f"pamap2_{split}_{activity_type.value}.pt")
+        self.valid_ids = sorted(activity_type.valid_ids)
+        self.protocol_dir = PAMAP2_DIR / 'PAMAP2_Dataset' / 'Protocol'
+        self.optional_dir = PAMAP2_DIR / 'PAMAP2_Dataset' / 'Optional'
+        self.processed_file = PAMAP2_DATA_LOADERS_DIR / activity_type.value.upper() / f'PAMAP2_{activity_type.value.upper()}_{split.capitalize()}_Data.pth'
 
         if not os.path.exists(self.processed_file):
+            os.makedirs(self.processed_file.parent, exist_ok=True)
             self._download_and_unzip()
             self._perform_preprocessing()
 
@@ -80,7 +57,6 @@ class Pamap2Dataset(Dataset):
             raise RuntimeError(f"Dataset not found or processed.")
 
         self.features, self.labels = torch.load(self.processed_file, weights_only=True)
-        self._normalize()
         self.num_windows = (len(self.features) - self.sequence_length) // self.stride + 1
 
     def __len__(self):
@@ -91,28 +67,33 @@ class Pamap2Dataset(Dataset):
         end_index = start_index + self.sequence_length
         window_labels = self.labels[start_index:end_index]
 
-        x = self.features[start_index:end_index]
+        x = self.features[start_index:end_index].clone()
+        x = self._normalize(x)
         x = x.transpose(0, 1)
-        y = torch.mode(window_labels).values
+
+        y = window_labels[-1]                   # -> Activity on last time step
+        # y = torch.mode(window_labels).values  # -> Most common activity in sequence
 
         return x, y
 
     def _download_and_unzip(self):
-        os.makedirs(self.root, exist_ok=True)
-
         if not os.path.exists(self.protocol_dir):
-            outer_zip_path = os.path.join(self.root, 'pamap2.zip')
-            if not os.path.exists(outer_zip_path):
+            outer_zip_path = os.path.join(PAMAP2_DIR, 'pamap2.zip')
+            if not os.path.exists(self.protocol_dir.parent):
                 with DownloadProgressBar(unit='B', unit_scale=True, miniters=1, desc="PAMAP2") as t:
                     urllib.request.urlretrieve(self.URL, outer_zip_path, reporthook=t.update_to)
 
             with zipfile.ZipFile(outer_zip_path, 'r') as zip_ref:
-                zip_ref.extractall(self.root)
+                zip_ref.extractall(PAMAP2_DIR)
 
-            inner_zip_path = os.path.join(self.root, 'PAMAP2_Dataset.zip')
+            inner_zip_path = os.path.join(PAMAP2_DIR, 'PAMAP2_Dataset.zip')
             if os.path.exists(inner_zip_path):
                 with zipfile.ZipFile(inner_zip_path, 'r') as zip_ref:
-                    zip_ref.extractall(self.root)
+                    zip_ref.extractall(PAMAP2_DIR)
+
+            os.remove(outer_zip_path)
+            os.remove(inner_zip_path)
+
 
     def _perform_preprocessing(self):
         subjects = self.SPLITS[self.split]
@@ -133,17 +114,13 @@ class Pamap2Dataset(Dataset):
                 df = self._fill_missing_data(df)
                 df = self._filter_out_invalid_ids(df)
 
-                if self.activity_type == Pamap2ActivityType.PROTOCOL:
-                    df = df[df[1].isin(self._PROTOCOL_ACTIVITIES)]
-                elif self.activity_type == Pamap2ActivityType.ADL:
-                    df = df[df[1].isin(self._ACTIVITIES_OF_DAILY_LIVING)]
-
                 if df.empty:
                     continue
 
                 features = df.iloc[:, 2:].values.astype(np.float32)
                 activity_ids = df[1].values.astype(int)
-                labels = np.array([self.id_to_index[_id] for _id in activity_ids])
+                id_to_index = self.activity_type.valid_id_index_pair
+                labels = np.array([id_to_index[_id] for _id in activity_ids])
 
                 all_features.append(features)
                 all_labels.append(labels)
@@ -153,13 +130,12 @@ class Pamap2Dataset(Dataset):
 
         torch.save((features_tensor, labels_tensor), self.processed_file)
 
-    def _normalize(self):
-        if self.mean is None or self.std is None:
-            self.mean = self.features.mean(dim=0, keepdim=True)
-            self.std = self.features.std(dim=0, keepdim=True)
-            self.std[self.std == 0] = 1e-6
-
-        self.features = (self.features - self.mean) / self.std
+    @staticmethod
+    def _normalize(x: np.ndarray):
+        mean = x.mean(axis=0, keepdims=True)
+        std = x.std(axis=0, keepdims=True)
+        std[std == 0] = 1e-6
+        return (x - mean) / std
 
     @staticmethod
     def _interpolate_missing_heart_rate(df: pd.DataFrame) -> pd.DataFrame:
@@ -176,20 +152,20 @@ class Pamap2Dataset(Dataset):
 
 
 def get_data(
-        root_dir='./data',
         batch_size=64,
         activity_type: Pamap2ActivityType = Pamap2ActivityType.ALL,
         sequence_length=256
 ):
+    """
+    :return: Train Dataloader, Validation Dataloader, Testing Dataloader
+    """
     train_dataset = Pamap2Dataset(
-        root=root_dir,
         split='train',
         activity_type=activity_type,
         sequence_length=sequence_length
     )
 
     validation_dataset = Pamap2Dataset(
-        root=root_dir,
         split='validation',
         activity_type=activity_type,
         sequence_length=sequence_length,
@@ -198,7 +174,6 @@ def get_data(
     )
 
     test_dataset = Pamap2Dataset(
-        root=root_dir,
         split='test',
         activity_type=activity_type,
         sequence_length=sequence_length,
@@ -217,21 +192,18 @@ if __name__ == '__main__':
     start_time = time.time()
 
     get_data(
-        root_dir='../../data',
         batch_size=64,
         activity_type=Pamap2ActivityType.ALL,
         sequence_length=256
     )
 
     get_data(
-        root_dir='../../data',
         batch_size=64,
         activity_type=Pamap2ActivityType.PROTOCOL,
         sequence_length=256
     )
 
     get_data(
-        root_dir='../../data',
         batch_size=64,
         activity_type=Pamap2ActivityType.ADL,
         sequence_length=256
