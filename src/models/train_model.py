@@ -34,11 +34,12 @@ def train_one_epoch(model: nn.Module, optimizer: Optimizer, criterion: nn.Module
 
 def evaluate(
         model: nn.Module,
-        criterion: nn.Module,
         data_loader: DataLoader,
-        device: str
+        device: str = "cuda",
+        criterion: nn.Module = nn.CrossEntropyLoss()
 ) -> ModelSummary:
     model.eval()
+    model.to(device)
     total_loss = 0.0
     all_predictions = []
     all_labels = []
@@ -66,7 +67,7 @@ def train(
         model: nn.Module,
         max_epochs: int,
         device: str = "cuda",
-        activity_type: Pamap2ActivityType = Pamap2ActivityType.ALL,
+        activity_type: Pamap2ActivityType = Pamap2ActivityType.ADL,
         trial: optuna.Trial = None,
         proxy_epochs: int | None = None,
         logger: TrainLogger = None,
@@ -87,7 +88,7 @@ def train(
 
     for epoch in range(epochs):
         training_accuracy = train_one_epoch(model, optimizer, criterion, training_loader, device)
-        val_summary = evaluate(model, criterion, validation_loader, device)
+        val_summary = evaluate(model, validation_loader, device, criterion)
 
         if logger is not None:
             logger.on_epoch_end(
