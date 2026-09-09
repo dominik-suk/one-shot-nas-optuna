@@ -1,5 +1,5 @@
-input: [256, 52]
-output: 12
+input: [52, 256]
+output: 6
 
 sequence:
   - block: "conv_1"

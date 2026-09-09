@@ -12,7 +12,7 @@ class Supernet(nn.Module):
         self.num_classes: int = search_space["output"]
         self.default_op_params: dict = search_space.get("default_op_params", {})
         input_shape = search_space["input"]
-        in_sensors = input_shape[1]
+        in_sensors = input_shape[0]
         self.max_channels = self._get_max_channels()
 
         self.input = nn.Conv1d(in_sensors, self.max_channels, 1)

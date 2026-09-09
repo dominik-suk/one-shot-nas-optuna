@@ -24,8 +24,8 @@ class Pamap2Dataset(Dataset):
     URL = 'https://archive.ics.uci.edu/static/public/231/pamap2+physical+activity+monitoring.zip'
     SPLITS = {
         'train': ['subject101.dat', 'subject102.dat', 'subject103.dat', 'subject104.dat', 'subject107.dat', 'subject108.dat'],
-        'validation': ['subject105.dat'],
-        'test': ['subject106.dat'],
+        'validation': ['subject105.dat', 'subject106.dat'],
+        'test': ['subject105.dat', 'subject106.dat'],
     }
 
     def __init__(

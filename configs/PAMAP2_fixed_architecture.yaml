@@ -1,4 +1,4 @@
-input: [256, 52]
+input: [52, 256]
 output: 6
 
 sequence:
@@ -6,7 +6,7 @@ sequence:
     op_candidates: "conv1d"
     type_repeat:
       type: "vary_all"
-      depth: [3]
+      depth: [2]
 
   - block: "pool_1"
     op_candidates: "maxpool"
@@ -15,7 +15,7 @@ sequence:
     op_candidates: "conv1d"
     type_repeat:
       type: "vary_all"
-      depth: [3]
+      depth: [1]
 
   - block: "lstm"
     op_candidates: "lstm"
@@ -27,22 +27,22 @@ sequence:
     op_candidates: "linear"
     type_repeat:
       type: "vary_all"
-      depth: [2]
+      depth: [1]
 
 default_op_params:
   conv1d:
-    kernel_size: [9]
+    kernel_size: [5]
     stride: [1]
-    out_channels: [128]
+    out_channels: [64]
     padding: "same"
 
   maxpool:
-    kernel_size: [4]
+    kernel_size: [2]
     stride: [2]
 
   lstm:
     hidden_size: [128]
-    num_layers: [2]
+    num_layers: [1]
     bidirectional: [True]
     batch_first: True
 
