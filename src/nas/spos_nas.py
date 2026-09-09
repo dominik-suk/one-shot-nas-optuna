@@ -1,45 +1,39 @@
 import optuna
-import torch
-from torch import nn
 
-from external.build_model import construct_model
-from external.sample_blocks import Sampler
 from src.data.pamap2_labels import Pamap2ActivityType
+from src.data.pamap2_loader import get_data
 from src.logging.summary import ModelSummary
-from src.logging.train_logger import TrainLogger
-from src.models.train_model import train
+from src.models.supernet import Supernet
+from src.models.train_model import evaluate
 from src.nas.nas_interface import NASExperiment
-
+from src.nas.supernet_trainer import SupernetTrainingWrapper
 
 class SinglePathOneShotNASExperiment(NASExperiment):
     def __init__(
             self,
+            supernet: Supernet,
             study: optuna.Study,
             search_space: dict,
             activity_type: Pamap2ActivityType = Pamap2ActivityType.ADL,
             epochs: int = 50
     ):
         super().__init__(study, search_space, activity_type, epochs)
+        self.supernet = supernet
 
     def objective(self, trial: optuna.Trial):
-        model = self.create_model(trial)
-        summary: ModelSummary = train(
-            model,
-            trial=trial,
-            max_epochs=self.epochs,
-            activity_type=self.activity_type,
-            logger=TrainLogger(),
-            sequence_length=self.input_shape[1],
+        supernet_path = self.sample_architecture(trial)
+        wrapped_supernet = SupernetTrainingWrapper(
+            self.supernet,
+            self.search_space,
+            supernet_path=supernet_path,
         )
-        return summary.loss
+        _, validation_loader, _ = get_data()
+        summary: ModelSummary = evaluate(
+            wrapped_supernet,
+            data_loader=validation_loader
+        )
+        summary.print()
+        return summary.loss,
 
-    def create_model(self, trial: optuna.Trial | optuna.trial.FrozenTrial) -> nn.Module:
-        sampler = Sampler(trial)
-        architecture_config = sampler.construct_sample(self.search_space)
-        model = construct_model(architecture_config, self.input_shape, self.output_shape)
-        return model
-
-    def train_best_model(self, save_path: str):
-        best_model = self.create_model(self.study.best_trial)
-        train(best_model, max_epochs=self.epochs, activity_type=self.activity_type, logger=TrainLogger())
-        torch.save(best_model.state_dict(), save_path)
+    def get_best_architecture(self):
+        return self.sample_architecture(self.study.best_trial)
