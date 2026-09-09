@@ -1,6 +1,6 @@
 import yaml
 
-from src.paths import PAMAP2_SEARCH_SPACE_PATH
+from src.paths import PAMAP2_SEARCH_SPACE_CONFIG_PATH, PAMAP2_FIXED_ARCH_CONFIG_PATH
 
 
 def load_search_space(search_space_path):
@@ -9,4 +9,8 @@ def load_search_space(search_space_path):
 
 
 def load_pamap2_search_space():
-    return load_search_space(PAMAP2_SEARCH_SPACE_PATH)
+    return load_search_space(PAMAP2_SEARCH_SPACE_CONFIG_PATH)
+
+
+def load_pamap2_fixed_arch_config():
+    return load_search_space(PAMAP2_FIXED_ARCH_CONFIG_PATH)
