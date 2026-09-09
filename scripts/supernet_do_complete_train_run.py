@@ -20,7 +20,7 @@ def main():
         fixed_architecture_config=fixed_architecture_config,
         epochs=100,
         activity_type=Pamap2ActivityType.ADL,
-        save_dir=SUPERNET_DIR
+        save_path=SUPERNET_DIR
     )
 
 
