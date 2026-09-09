@@ -149,7 +149,7 @@ class Pamap2Dataset(Dataset):
 
 def get_data(
         batch_size=64,
-        activity_type: Pamap2ActivityType = Pamap2ActivityType.ALL,
+        activity_type: Pamap2ActivityType = Pamap2ActivityType.ADL,
         sequence_length=256
 ):
     """
