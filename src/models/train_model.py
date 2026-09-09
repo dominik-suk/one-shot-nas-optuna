@@ -1,0 +1,131 @@
+import copy
+from typing import Sized
+
+import optuna
+import torch
+from torch import nn, optim
+from torch.optim import Optimizer
+from torch.utils.data import DataLoader
+
+from src.data.pamap2_labels import Pamap2ActivityType
+from src.data.pamap2_loader import get_data
+from src.logging.train_logger import TrainLogger
+from src.models.fixed_architecture import HumanActivityClassifier
+
+from sklearn.metrics import f1_score
+
+def train_one_epoch(model: nn.Module, optimizer: Optimizer, criterion: nn.Module, training_loader: DataLoader, device: str):
+    model.train()
+    correct = 0
+
+    for batch_index, (inputs, labels) in enumerate(training_loader):
+        inputs, labels = inputs.to(device), labels.to(device)
+        optimizer.zero_grad()
+        outputs = model(inputs)
+        loss = criterion(outputs, labels)
+        loss.backward()
+        optimizer.step()
+        correct += (outputs.argmax(1) == labels).sum().item()
+
+    assert isinstance(training_loader.dataset, Sized)
+    accuracy = 100 * correct / len(training_loader.dataset)
+    return accuracy
+
+
+def evaluate(model: nn.Module, criterion: nn.Module, data_loader: DataLoader, device: str):
+    model.eval()
+    total_loss = 0.0
+    all_predictions = []
+    all_labels = []
+
+    with torch.no_grad():
+        for batch_index, (inputs, labels) in enumerate(data_loader):
+            inputs, labels = inputs.to(device), labels.to(device)
+            outputs = model(inputs)
+            loss = criterion(outputs, labels)
+            total_loss += loss.item()
+            _, predictions = torch.max(outputs, 1)
+            all_predictions.extend(predictions.cpu().numpy())
+            all_labels.extend(labels.cpu().numpy())
+
+    average_loss = total_loss / len(data_loader)
+    correct = sum(prediction == label for prediction, label in zip(all_predictions, all_labels))
+    accuracy = (correct / len(all_labels)) * 100.0
+    macro_f1 = f1_score(all_labels, all_predictions, average="macro") * 100.0
+
+    return average_loss, accuracy, macro_f1
+
+
+def train(
+        model: nn.Module,
+        max_epochs: int,
+        device: str = "cuda",
+        activity_type: Pamap2ActivityType = Pamap2ActivityType.ALL,
+        trial: optuna.Trial = None,
+        proxy_epochs: int | None = None,
+        logger: TrainLogger = None
+) -> tuple[float, float, float]:
+    """
+    :returns: (loss: float, accuracy: float, macro_f1: float)
+    """
+    model.to(device)
+    training_loader, validation_loader, test_loader = get_data(activity_type=activity_type)
+    optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs)
+    criterion = nn.CrossEntropyLoss()
+    best_validation_loss = float("inf")
+    best_weights = copy.deepcopy(model.state_dict())
+    epochs = _get_epochs(max_epochs, proxy_epochs)
+
+    for epoch in range(epochs):
+        training_accuracy = train_one_epoch(model, optimizer, criterion, training_loader, device)
+        validation_loss, validation_accuracy, macro_f1 = evaluate(model, criterion, validation_loader, device)
+
+        if logger is not None:
+            logger.on_epoch_end(
+                epoch=epoch,
+                total_epochs=epochs,
+                train_acc=training_accuracy,
+                val_acc=validation_accuracy,
+                val_loss=validation_loss,
+                f1_score=macro_f1
+            )
+
+        if validation_loss < best_validation_loss:
+            best_validation_loss = validation_loss
+            best_weights = copy.deepcopy(model.state_dict())
+
+        if trial is not None:
+            trial.report(validation_loss, epoch)
+            if trial.should_prune():
+                raise optuna.TrialPruned()
+
+        scheduler.step()
+
+    model.load_state_dict(best_weights)
+    final_loss, final_accuracy, macro_f1 = evaluate(model, criterion, test_loader, device)
+
+    if logger is not None:
+        logger.on_train_end(final_loss, final_accuracy)
+
+    return final_loss, final_accuracy, macro_f1
+
+
+def _get_epochs(max_epochs: int, proxy_epochs: int | None) -> int:
+    if proxy_epochs is None:
+        return max_epochs
+    return proxy_epochs
+
+
+def main():
+    all_model = HumanActivityClassifier(num_classes=18)
+    protocol_model = HumanActivityClassifier(num_classes=12)
+    adl_model = HumanActivityClassifier(num_classes=6)
+    train(all_model, max_epochs=50, device="cuda", activity_type=Pamap2ActivityType.ALL)
+    train(protocol_model, max_epochs=50, device="cuda", activity_type=Pamap2ActivityType.PROTOCOL)
+    train(adl_model, max_epochs=50, device="cuda", activity_type=Pamap2ActivityType.ADL)
+
+
+
+if __name__ == "__main__":
+    main()
