@@ -12,14 +12,18 @@ from src.data.pamap2_labels import Pamap2ActivityType
 from src.models.supernet import Supernet
 from src.models.train_model import train
 from src.logging.train_logger import TrainLogger
+from src.paths import SUPERNET_PATH
 
 
 class SupernetTrainingWrapper(nn.Module):
-    def __init__(self, supernet: Supernet, search_space: dict, fixed_architecture_config: OrderedDict[Any, Any] = None, ):
+    def __init__(self, supernet: Supernet, search_space: dict, supernet_path: OrderedDict[Any, Any] = None, fixed_architecture_config: OrderedDict[Any, Any] = None):
         super().__init__()
         self.supernet = supernet
         self.search_space = search_space
-        self.fixed_architecture = self._init_fixed_architecture(fixed_architecture_config)
+        if supernet_path:
+            self.fixed_architecture = supernet_path
+        else:
+            self.fixed_architecture = self._init_fixed_architecture(fixed_architecture_config)
 
     def _take_one_sample(self) -> OrderedDict[Any, Any]:
         return self._get_new_sampler().construct_sample(self.search_space)
@@ -52,7 +56,7 @@ def train_supernet(
         device: str = "cuda",
         activity_type: Pamap2ActivityType = Pamap2ActivityType.ADL,
         fixed_architecture_config = None,
-        save_dir: str = None,
+        save_path: str = None,
 ):
     wrapped_supernet = SupernetTrainingWrapper(
         supernet,
@@ -69,7 +73,8 @@ def train_supernet(
         sequence_length=search_space["input"][1]
     )
 
-    if save_dir is not None:
-        os.makedirs(save_dir, exist_ok=True)
-        save_path = os.path.join(save_dir, 'Supernet.pt')
+    if save_path:
+        os.makedirs(save_path, exist_ok=True)
         torch.save(supernet, save_path)
+    else:
+        torch.save(supernet, SUPERNET_PATH)
