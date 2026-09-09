@@ -1,17 +1,16 @@
 import optuna
 from optuna.pruners import HyperbandPruner
-from optuna.samplers import NSGAIISampler, TPESampler
+from optuna.samplers import NSGAIISampler
 
 from src.nas.baseline_nas_algorithm import BaselineNASExperiment
-from src.paths import PAMAP2_BASELINE_EXPERIMENT_DATABASE_PATH, BASELINE_MODEL_PATH
+from src.paths import PAMAP2_BASELINE_EXPERIMENT_DB_PATH, BASELINE_MODEL_PATH
 from src.utils.yaml_io import load_pamap2_search_space
 
 
 def main():
     search_space = load_pamap2_search_space()
-    db_url = f"sqlite:///{PAMAP2_BASELINE_EXPERIMENT_DATABASE_PATH}"
+    db_url = f"sqlite:///{PAMAP2_BASELINE_EXPERIMENT_DB_PATH}"
     optuna_sampler = NSGAIISampler(population_size=20)
-    optuna_sampler = TPESampler()
 
     study = optuna.create_study(
         study_name='pamap2_baseline_nas',
