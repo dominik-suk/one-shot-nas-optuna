@@ -57,7 +57,7 @@ class HeatmapGenerator:
             self.confusion_matrix,
             xticklabels=labels,
             yticklabels=labels,
-            annot=False,
+            annot=True,
             cmap="Blues",
             fmt='d',
             square=True
@@ -68,10 +68,14 @@ class HeatmapGenerator:
         plt.xticks(rotation=45, ha="right")
         plt.yticks(rotation=0, ha="right")
         plt.tight_layout()
+
         if destination is not None:
             plt.savefig(destination)
+
         if do_plot:
+            print(self.confusion_matrix)
             plt.show()
+
         plt.close()
 
     def generate_confusion_matrix(self) -> np.ndarray:
@@ -104,7 +108,6 @@ def main():
     protocol_heatmap = HeatmapGenerator(
         model=HumanActivityClassifier(num_classes=12),
         state_dict_path=SAMPLED_PROTOCOL_MODEL_PATH,
-        device='cuda',
     )
     protocol_heatmap.show()
     protocol_heatmap.save(HEATMAPS_DIR / f"{SAMPLED_PROTOCOL_MODEL_PATH.stem}_heatmap.png")
@@ -112,10 +115,17 @@ def main():
     adl_heatmap = HeatmapGenerator(
         model=HumanActivityClassifier(num_classes=6),
         state_dict_path=SAMPLED_ADL_MODEL_PATH,
-        device='cuda',
     )
     adl_heatmap.show()
     adl_heatmap.save(HEATMAPS_DIR / f"{SAMPLED_ADL_MODEL_PATH.stem}_heatmap.png")
+
+
+    all_heatmap = HeatmapGenerator(
+        model=HumanActivityClassifier(num_classes=18),
+        state_dict_path=Path("/home/dominik/Documents/Uni/Abschlussarbeit/Code/one-shot-nas-optuna/models/samples/fixed_arch_ALL_acc_53.pth"),
+    )
+    all_heatmap.show()
+    all_heatmap.save(Path("/home/dominik/Documents/Uni/Abschlussarbeit/Code/one-shot-nas-optuna/plots/heatmaps/fixed_arch_ALL_acc_53_heatmap.png"))
 
 if __name__ == "__main__":
     main()
