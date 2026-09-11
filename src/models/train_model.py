@@ -67,7 +67,7 @@ def train(
         model: nn.Module,
         max_epochs: int,
         device: str = "cuda",
-        activity_type: Pamap2ActivityType = Pamap2ActivityType.ADL,
+        activity_type: Pamap2ActivityType = Pamap2ActivityType.PROTOCOL,
         trial: optuna.Trial = None,
         proxy_epochs: int | None = None,
         logger: TrainLogger = None,
@@ -112,7 +112,12 @@ def train(
         scheduler.step()
 
     model.load_state_dict(best_weights)
-    summary = evaluate(model, criterion, test_loader, device)
+    summary = evaluate(
+        model=model,
+        criterion=criterion,
+        data_loader=test_loader,
+        device=device
+    )
 
     if logger is not None:
         summary.print()
