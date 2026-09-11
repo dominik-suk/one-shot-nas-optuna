@@ -42,17 +42,17 @@ class Pamap2Dataset(Dataset):
         self.valid_ids = sorted(activity_type.valid_ids)
         self.protocol_dir = PAMAP2_DIR / 'PAMAP2_Dataset' / 'Protocol'
         self.optional_dir = PAMAP2_DIR / 'PAMAP2_Dataset' / 'Optional'
-        self.processed_file = PAMAP2_DATA_LOADERS_DIR / activity_type.value.upper() / f'PAMAP2_{activity_type.value.upper()}_{split.capitalize()}_Data.pth'
+        self.data_loader_path = PAMAP2_DATA_LOADERS_DIR / activity_type.value.upper() / f'PAMAP2_{activity_type.value.upper()}_{split.capitalize()}_Data.pth'
 
-        if not os.path.exists(self.processed_file):
-            os.makedirs(self.processed_file.parent, exist_ok=True)
+        if not os.path.exists(self.data_loader_path):
+            os.makedirs(self.data_loader_path.parent, exist_ok=True)
             self._download_and_unzip()
             self._perform_preprocessing()
 
-        if not os.path.exists(self.processed_file):
+        if not os.path.exists(self.data_loader_path):
             raise RuntimeError(f"Dataset not found or processed.")
 
-        self.features, self.labels = torch.load(self.processed_file, weights_only=True)
+        self.features, self.labels = torch.load(self.data_loader_path, weights_only=True)
         self.num_windows = (len(self.features) - self.sequence_length) // self.stride + 1
 
     def __len__(self):
@@ -124,7 +124,7 @@ class Pamap2Dataset(Dataset):
         features_tensor = torch.tensor(np.concatenate(all_features, axis=0))
         labels_tensor = torch.tensor(np.concatenate(all_labels, axis=0))
 
-        torch.save((features_tensor, labels_tensor), self.processed_file)
+        torch.save((features_tensor, labels_tensor), self.data_loader_path)
 
     @staticmethod
     def _normalize(x: np.ndarray):
@@ -149,7 +149,7 @@ class Pamap2Dataset(Dataset):
 
 def get_data(
         batch_size=64,
-        activity_type: Pamap2ActivityType = Pamap2ActivityType.ADL,
+        activity_type: Pamap2ActivityType = Pamap2ActivityType.PROTOCOL,
         sequence_length=256
 ):
     """
