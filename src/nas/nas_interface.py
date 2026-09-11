@@ -27,6 +27,7 @@ class NASExperiment(ABC):
         self.study = study
         self.search_space = search_space
         self.input_shape = search_space["input"]
+        self.sequence_length = self.input_shape[1]
         self.output_shape = search_space["output"]
         self.activity_type = activity_type
         self.epochs = epochs
@@ -60,7 +61,14 @@ class NASExperiment(ABC):
 
     def train_best_model(self, save_path: str = None):
         best_model = self.get_best_model()
-        train(best_model, max_epochs=self.epochs, activity_type=self.activity_type, logger=TrainLogger())
+        train(
+            model=best_model,
+            max_epochs=self.epochs,
+            activity_type=self.activity_type,
+            load_best_weights=True,
+            retraining_best_model=True,
+            logger=TrainLogger()
+        )
         if save_path:
             os.makedirs(Path(save_path).parent, exist_ok=True)
             torch.save(best_model.state_dict(), save_path)
