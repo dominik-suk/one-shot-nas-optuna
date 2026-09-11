@@ -1,5 +1,7 @@
+import os
 from abc import ABC, abstractmethod
 from collections import OrderedDict
+from pathlib import Path
 from typing import Any
 
 import optuna
@@ -18,7 +20,7 @@ class NASExperiment(ABC):
             self,
             study: optuna.Study,
             search_space: dict,
-            activity_type: Pamap2ActivityType = Pamap2ActivityType.ADL,
+            activity_type: Pamap2ActivityType = Pamap2ActivityType.PROTOCOL,
             epochs: int = 50,
             device: str = 'cuda'
     ):
@@ -29,6 +31,14 @@ class NASExperiment(ABC):
         self.activity_type = activity_type
         self.epochs = epochs
         self.device = device
+
+    @abstractmethod
+    def objective(self, trial: optuna.Trial):
+        pass
+
+    @abstractmethod
+    def get_best_architecture(self):
+        pass
 
     def run(self, n_trials: int = 100):
         current_trial_number = len(self.study.trials)
@@ -45,19 +55,12 @@ class NASExperiment(ABC):
         except ShapeValueError:
             raise optuna.TrialPruned()
 
-    def get_best_model(self):
+    def get_best_model(self) -> nn.Module:
         return self.create_model(self.get_best_architecture())
 
     def train_best_model(self, save_path: str = None):
         best_model = self.get_best_model()
         train(best_model, max_epochs=self.epochs, activity_type=self.activity_type, logger=TrainLogger())
         if save_path:
+            os.makedirs(Path(save_path).parent, exist_ok=True)
             torch.save(best_model.state_dict(), save_path)
-
-    @abstractmethod
-    def objective(self, trial: optuna.Trial):
-        pass
-
-    @abstractmethod
-    def get_best_architecture(self):
-        pass
