@@ -57,7 +57,7 @@ class HeatmapGenerator:
             self.confusion_matrix,
             xticklabels=labels,
             yticklabels=labels,
-            annot=True,
+            annot=False,
             cmap="Blues",
             fmt='d',
             square=True
