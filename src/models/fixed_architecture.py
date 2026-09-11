@@ -8,7 +8,7 @@ class HumanActivityClassifier(nn.Module):
         self.conv_1 = nn.Conv1d(
             in_channels=52,
             out_channels=64,
-            kernel_size = 7,
+            kernel_size = 5,
             stride = 1,
             padding = "same"
         )
@@ -25,13 +25,13 @@ class HumanActivityClassifier(nn.Module):
         )
         self.conv_3 = nn.Conv1d(
             in_channels=64,
-            out_channels=128,
-            kernel_size = 3,
+            out_channels=64,
+            kernel_size = 5,
             stride = 1,
             padding = "same"
         )
         self.lstm = nn.LSTM(
-            input_size=128,
+            input_size=64,
             hidden_size=128,
             num_layers=1,
             batch_first=True,
