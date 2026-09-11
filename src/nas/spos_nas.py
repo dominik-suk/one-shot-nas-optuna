@@ -14,7 +14,7 @@ class SinglePathOneShotNASExperiment(NASExperiment):
             supernet: Supernet,
             study: optuna.Study,
             search_space: dict,
-            activity_type: Pamap2ActivityType = Pamap2ActivityType.ADL,
+            activity_type: Pamap2ActivityType = Pamap2ActivityType.PROTOCOL,
             epochs: int = 50
     ):
         super().__init__(study, search_space, activity_type, epochs)
