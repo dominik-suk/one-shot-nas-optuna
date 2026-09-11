@@ -4,7 +4,6 @@ from optuna.samplers import NSGAIISampler
 from src.nas.baseline_nas_algorithm import BaselineNASExperiment
 from src.paths import PAMAP2_BASELINE_EXPERIMENT_DB_PATH, BASELINE_BEST_MODEL_PATH
 from src.utils.yaml_io import load_pamap2_search_space
-from src.data.pamap2_labels import Pamap2ActivityType
 
 
 def main():
@@ -26,9 +25,9 @@ def main():
     experiment = BaselineNASExperiment(
         study=study,
         search_space=search_space,
-        activity_type=Pamap2ActivityType.PROTOCOL,
         max_epochs=50,
         n_proxy_epochs=15,
+        device="cuda",
     )
 
     experiment.run(n_trials=100)

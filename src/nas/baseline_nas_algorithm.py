@@ -1,6 +1,5 @@
 import optuna
 
-from src.data.pamap2_labels import Pamap2ActivityType
 from src.logging.summary import ModelSummary
 from src.logging.train_logger import TrainLogger
 from src.models.train_model import train
@@ -12,11 +11,16 @@ class BaselineNASExperiment(NASExperiment):
             self,
             study: optuna.Study,
             search_space: dict,
-            activity_type: Pamap2ActivityType = Pamap2ActivityType.PROTOCOL,
             max_epochs: int = 50,
-            n_proxy_epochs: int = 10
+            n_proxy_epochs: int = 10,
+            device: str = "cuda",
     ):
-        super().__init__(study, search_space, activity_type, max_epochs)
+        super().__init__(
+            study=study,
+            search_space=search_space,
+            epochs=max_epochs,
+            device=device
+        )
         self.n_proxy_epochs = n_proxy_epochs
 
     def objective(self, trial: optuna.Trial) -> float:
@@ -33,6 +37,3 @@ class BaselineNASExperiment(NASExperiment):
             logger=TrainLogger(),
         )
         return summary.accuracy
-
-    def get_best_architecture(self):
-        return self.sample_architecture(self.study.best_trial)

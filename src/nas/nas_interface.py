@@ -10,7 +10,7 @@ from torch import nn
 
 from external.build_model import construct_model, ShapeValueError
 from external.sample_blocks import Sampler
-from src.data.pamap2_labels import Pamap2ActivityType
+from src.data.pamap2_labels import get_activity_type_from_search_space
 from src.logging.train_logger import TrainLogger
 from src.models.train_model import train
 
@@ -20,7 +20,6 @@ class NASExperiment(ABC):
             self,
             study: optuna.Study,
             search_space: dict,
-            activity_type: Pamap2ActivityType = Pamap2ActivityType.PROTOCOL,
             epochs: int = 50,
             device: str = 'cuda'
     ):
@@ -29,16 +28,12 @@ class NASExperiment(ABC):
         self.input_shape = search_space["input"]
         self.sequence_length = self.input_shape[1]
         self.output_shape = search_space["output"]
-        self.activity_type = activity_type
+        self.activity_type = get_activity_type_from_search_space(search_space)
         self.epochs = epochs
         self.device = device
 
     @abstractmethod
     def objective(self, trial: optuna.Trial):
-        pass
-
-    @abstractmethod
-    def get_best_architecture(self):
         pass
 
     def run(self, n_trials: int = 100):
@@ -55,6 +50,9 @@ class NASExperiment(ABC):
             return construct_model(architecture_config, self.input_shape, self.output_shape)
         except ShapeValueError:
             raise optuna.TrialPruned()
+
+    def get_best_architecture(self):
+        return self.sample_architecture(self.study.best_trial)
 
     def get_best_model(self) -> nn.Module:
         return self.create_model(self.get_best_architecture())

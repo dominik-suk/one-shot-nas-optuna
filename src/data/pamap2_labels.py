@@ -28,3 +28,13 @@ class Pamap2ActivityType(Enum):
     @property
     def labels(self) -> list[str]:
         return [PAMAP2_ACTIVITIES[_id] for _id in self.valid_ids]
+
+
+def get_activity_type_from_search_space(search_space: dict) -> Pamap2ActivityType:
+    if search_space["output"] == 18:
+        return Pamap2ActivityType.ALL
+    if search_space["output"] == 12:
+        return Pamap2ActivityType.PROTOCOL
+    if search_space["output"] == 6:
+        return Pamap2ActivityType.ADL
+    raise ValueError(f"Unknown number of classes: '{search_space['output']}'")

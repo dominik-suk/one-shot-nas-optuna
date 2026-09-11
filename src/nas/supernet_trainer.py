@@ -9,22 +9,28 @@ import torch.nn as nn
 from optuna.samplers import RandomSampler
 
 from external.sample_blocks import Sampler
-from src.data.pamap2_labels import Pamap2ActivityType
+from src.data.pamap2_labels import get_activity_type_from_search_space
+from src.logging.train_logger import TrainLogger
 from src.models.supernet import Supernet
 from src.models.train_model import train
-from src.logging.train_logger import TrainLogger
 from src.paths import SUPERNET_PATH
 
 
 class SupernetTrainingWrapper(nn.Module):
-    def __init__(self, supernet: Supernet, search_space: dict, supernet_path: OrderedDict[Any, Any] = None, fixed_architecture_config: OrderedDict[Any, Any] = None):
+    def __init__(
+            self,
+            supernet: Supernet,
+            search_space: dict,
+            fixed_subnet_path: OrderedDict[Any, Any] | None = None,
+            fixed_architecture_yaml: dict | None = None
+    ):
         super().__init__()
         self.supernet = supernet
         self.search_space = search_space
-        if supernet_path:
-            self.fixed_architecture = supernet_path
+        if fixed_subnet_path:
+            self.fixed_subnet_path = fixed_subnet_path
         else:
-            self.fixed_architecture = self._init_fixed_architecture(fixed_architecture_config)
+            self.fixed_subnet_path = self._init_fixed_architecture(fixed_architecture_yaml)
 
     def _take_one_sample(self) -> OrderedDict[Any, Any]:
         return self._get_new_sampler().construct_sample(self.search_space)
@@ -43,11 +49,9 @@ class SupernetTrainingWrapper(nn.Module):
 
     def forward(self, x):
         if self.training:
-            architecture = self._take_one_sample()
+            return self.supernet(x, self._take_one_sample())
         else:
-            architecture = self.fixed_architecture
-
-        return self.supernet(x, architecture)
+            return self.supernet(x, self.fixed_subnet_path)
 
 
 def train_supernet(
@@ -55,24 +59,25 @@ def train_supernet(
         search_space: dict,
         epochs: int = 100,
         device: str = "cuda",
-        activity_type: Pamap2ActivityType = Pamap2ActivityType.PROTOCOL,
-        fixed_architecture_config = None,
+        fixed_architecture_config: dict = None,
         save_path: str = SUPERNET_PATH,
         do_save: bool = True,
 ):
     wrapped_supernet = SupernetTrainingWrapper(
         supernet,
         search_space,
-        fixed_architecture_config=fixed_architecture_config
+        fixed_architecture_yaml=fixed_architecture_config
     )
 
     train(
         model=wrapped_supernet,
         max_epochs=epochs,
         device=device,
-        activity_type=activity_type,
+        activity_type=get_activity_type_from_search_space(search_space),
         logger=TrainLogger(),
-        sequence_length=search_space["input"][1]
+        sequence_length=search_space["input"][1],
+        load_best_weights=False,
+        retraining_best_model=False,
     )
 
     if do_save:

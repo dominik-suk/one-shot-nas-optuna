@@ -2,7 +2,6 @@ import optuna
 import torch
 from optuna.samplers import NSGAIISampler
 
-from src.data.pamap2_labels import Pamap2ActivityType
 from src.models.supernet import Supernet
 from src.nas.spos_nas import SinglePathOneShotNASExperiment
 from src.paths import PAMAP2_SPOS_EXPERIMENT_DB_PATH, SUPERNET_PATH, SUPERNET_BEST_MODEL_PATH
@@ -32,7 +31,7 @@ def main():
         supernet=supernet,
         study=study,
         search_space=search_space,
-        activity_type=Pamap2ActivityType.PROTOCOL,
+        device="cuda",
     )
 
     experiment.run(1000)
