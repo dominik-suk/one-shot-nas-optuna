@@ -3,7 +3,7 @@ import optuna
 from src.data.pamap2_loader import Pamap2ActivityType
 from src.models.supernet import Supernet
 from src.nas.supernet_trainer import train_supernet
-from src.paths import SUPERNET_DIR
+from src.paths import SUPERNET_PATH
 from src.utils.yaml_io import load_pamap2_search_space, load_pamap2_fixed_arch_config
 
 
@@ -17,10 +17,10 @@ def main():
     train_supernet(
         supernet=supernet,
         search_space=search_space,
+        epochs=250,
+        activity_type=Pamap2ActivityType.PROTOCOL,
         fixed_architecture_config=fixed_architecture_config,
-        epochs=100,
-        activity_type=Pamap2ActivityType.ADL,
-        save_path=SUPERNET_DIR
+        save_path=SUPERNET_PATH
     )
 
 
