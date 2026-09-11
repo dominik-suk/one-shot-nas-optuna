@@ -1,5 +1,6 @@
 import os
 from collections import OrderedDict
+from pathlib import Path
 from typing import Any
 
 import optuna
@@ -54,9 +55,10 @@ def train_supernet(
         search_space: dict,
         epochs: int = 100,
         device: str = "cuda",
-        activity_type: Pamap2ActivityType = Pamap2ActivityType.ADL,
+        activity_type: Pamap2ActivityType = Pamap2ActivityType.PROTOCOL,
         fixed_architecture_config = None,
-        save_path: str = None,
+        save_path: str = SUPERNET_PATH,
+        do_save: bool = True,
 ):
     wrapped_supernet = SupernetTrainingWrapper(
         supernet,
@@ -73,8 +75,6 @@ def train_supernet(
         sequence_length=search_space["input"][1]
     )
 
-    if save_path:
-        os.makedirs(save_path, exist_ok=True)
-        torch.save(supernet, save_path)
-    else:
-        torch.save(supernet, SUPERNET_PATH)
+    if do_save:
+        os.makedirs(Path(save_path).parent, exist_ok=True)
+        torch.save(supernet.state_dict(), save_path)
