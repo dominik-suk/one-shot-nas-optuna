@@ -2,32 +2,41 @@ import optuna
 import torch
 from optuna.samplers import NSGAIISampler
 
+from src.data.pamap2_labels import Pamap2ActivityType
 from src.models.supernet import Supernet
 from src.nas.spos_nas import SinglePathOneShotNASExperiment
-from src.paths import PAMAP2_SPOS_EXPERIMENT_DB_PATH, SUPERNET_PATH, SUPERNET_DIR
+from src.paths import PAMAP2_SPOS_EXPERIMENT_DB_PATH, SUPERNET_PATH, SUPERNET_BEST_MODEL_PATH
 from src.utils.yaml_io import load_pamap2_search_space
 
 
 def main():
     search_space = load_pamap2_search_space()
     db_url = f"sqlite:///{PAMAP2_SPOS_EXPERIMENT_DB_PATH}"
-    optuna_sampler = NSGAIISampler(population_size=20)
+
+    supernet = Supernet(search_space)
+    supernet.load_state_dict(torch.load(SUPERNET_PATH))
+
+    optuna_sampler = NSGAIISampler(
+        population_size=50
+    )
 
     study = optuna.create_study(
         study_name='pamap2_spos_nas',
         storage=db_url,
         load_if_exists=True,
         sampler=optuna_sampler,
-        direction='minimize'
+        direction='maximize'
     )
-    supernet: Supernet = torch.load(SUPERNET_PATH, weights_only=False)
+
     experiment = SinglePathOneShotNASExperiment(
         supernet=supernet,
         study=study,
-        search_space=search_space
+        search_space=search_space,
+        activity_type=Pamap2ActivityType.PROTOCOL,
     )
-    experiment.run(200)
-    experiment.train_best_model(save_path=SUPERNET_DIR / "BestArchitecture.pth")
+
+    experiment.run(1000)
+    experiment.train_best_model(save_path=SUPERNET_BEST_MODEL_PATH)
 
 
 if __name__ == "__main__":
