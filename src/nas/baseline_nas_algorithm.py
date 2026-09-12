@@ -28,7 +28,7 @@ class BaselineNASExperiment(NASExperiment):
         model = self.create_model(architecture)
         summary: ModelSummary = train(
             model=model,
-            max_epochs=self.epochs,
+            epochs=self.epochs,
             n_proxy_epochs=self.n_proxy_epochs,
             activity_type=self.activity_type,
             sequence_length=self.input_shape[1],

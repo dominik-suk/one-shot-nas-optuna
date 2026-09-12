@@ -61,7 +61,7 @@ class NASExperiment(ABC):
         best_model = self.get_best_model()
         train(
             model=best_model,
-            max_epochs=self.epochs,
+            epochs=self.epochs,
             activity_type=self.activity_type,
             load_best_weights=True,
             retraining_best_model=True,
