@@ -9,6 +9,7 @@ class TrainLogger:
             total_epochs: int,
             train_acc: float,
             val_acc: float,
+            current_best_acc: float,
             val_loss: float,
             f1_score: float,
     ):
@@ -17,6 +18,7 @@ class TrainLogger:
             f"Validation Loss: {val_loss:.4f}",
             f"Training Accuracy: {train_acc:.2f} %",
             f"Validation Accuracy: {val_acc:.2f} %",
+            f"Best Accuracy: {current_best_acc:.2f} %",
             f"F1 Score: {f1_score:.2f} %",
         ])
 
