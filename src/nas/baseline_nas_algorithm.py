@@ -31,7 +31,7 @@ class BaselineNASExperiment(NASExperiment):
             epochs=self.epochs,
             n_proxy_epochs=self.n_proxy_epochs,
             activity_type=self.activity_type,
-            sequence_length=self.input_shape[1],
+            sequence_length=self.sequence_length,
             load_best_weights=True,
             retraining_best_model=False,
             logger=TrainLogger(),
