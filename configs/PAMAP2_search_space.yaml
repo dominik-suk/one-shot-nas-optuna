@@ -24,7 +24,7 @@ sequence:
     op_candidates: ["dropout", "gaussian_dropout", "identity"]
 
   - block: "linear"
-    op_candidates: ["linear", "identity"]
+    op_candidates: ["linear"]
     type_repeat:
       type: "vary_all"
       depth: [1, 2]
@@ -35,6 +35,7 @@ default_op_params:
     stride: [1, 2]
     out_channels: [32, 64, 128]
     padding: "same"
+    activation: ["relu", "tanh"]
 
   maxpool:
     kernel_size: [2, 4]
