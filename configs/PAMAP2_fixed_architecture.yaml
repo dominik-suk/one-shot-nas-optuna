@@ -34,6 +34,7 @@ default_op_params:
     kernel_size: [5]
     stride: [1]
     out_channels: [64]
+    activation: ["relu"]
     padding: "same"
 
   maxpool:
