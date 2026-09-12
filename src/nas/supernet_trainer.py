@@ -71,7 +71,7 @@ def train_supernet(
 
     train(
         model=wrapped_supernet,
-        max_epochs=epochs,
+        epochs=epochs,
         device=device,
         activity_type=get_activity_type_from_search_space(search_space),
         logger=TrainLogger(),
