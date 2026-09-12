@@ -1,7 +1,6 @@
 import copy
 from typing import Sized
 
-import optuna
 import torch
 from sklearn.metrics import f1_score
 from torch import nn, optim
@@ -10,9 +9,10 @@ from torch.utils.data import DataLoader
 
 from src.data.pamap2_labels import Pamap2ActivityType
 from src.data.pamap2_loader import get_data
+from src.logging.summary import ModelSummary
 from src.logging.train_logger import TrainLogger
 from src.models.fixed_architecture import HumanActivityClassifier
-from src.logging.summary import ModelSummary
+
 
 def train_one_epoch(model: nn.Module, optimizer: Optimizer, criterion: nn.Module, training_loader: DataLoader, device: str):
     model.train()
@@ -65,59 +65,61 @@ def evaluate(
 
 def train(
         model: nn.Module,
-        max_epochs: int,
-        device: str = "cuda",
+        epochs: int,
         activity_type: Pamap2ActivityType = Pamap2ActivityType.PROTOCOL,
-        trial: optuna.Trial = None,
-        proxy_epochs: int | None = None,
+        n_proxy_epochs: int | None = None,
+        sequence_length: int = 256,
+        load_best_weights: bool = True,
+        retraining_best_model: bool = False,
+        device: str = "cuda",
         logger: TrainLogger = None,
-        sequence_length: int = 256
 ) -> ModelSummary:
     model.to(device)
     training_loader, validation_loader, test_loader = get_data(
         activity_type=activity_type,
         sequence_length=sequence_length
     )
-    optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=max_epochs)
-    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
+    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
-    best_validation_loss = float("inf")
+    summary = None
+    best_validation_accuracy = 0.0
     best_weights = copy.deepcopy(model.state_dict())
-    epochs = _get_epochs(max_epochs, proxy_epochs)
+    epochs = _get_epochs(epochs, n_proxy_epochs)
 
     for epoch in range(epochs):
         training_accuracy = train_one_epoch(model, optimizer, criterion, training_loader, device)
-        val_summary = evaluate(model, validation_loader, device, criterion)
+        summary = evaluate(model, validation_loader, device, criterion)
+
+        if summary.accuracy > best_validation_accuracy:
+            best_validation_accuracy = summary.accuracy
+            best_weights = copy.deepcopy(model.state_dict())
 
         if logger is not None:
             logger.on_epoch_end(
                 epoch=epoch,
                 total_epochs=epochs,
                 train_acc=training_accuracy,
-                val_acc=val_summary.accuracy,
-                val_loss=val_summary.loss,
-                f1_score=val_summary.f1_score,
+                val_acc=summary.accuracy,
+                current_best_acc=best_validation_accuracy,
+                val_loss=summary.loss,
+                f1_score=summary.f1_score,
             )
 
-        if val_summary.loss < best_validation_loss:
-            best_validation_loss = val_summary.loss
-            best_weights = copy.deepcopy(model.state_dict())
+        if epoch >= 5:
+            scheduler.step()
 
-        if trial is not None:
-            trial.report(val_summary.loss, epoch)
-            if trial.should_prune():
-                raise optuna.TrialPruned()
+    if load_best_weights:
+        model.load_state_dict(best_weights)
 
-        scheduler.step()
-
-    model.load_state_dict(best_weights)
-    summary = evaluate(
-        model=model,
-        criterion=criterion,
-        data_loader=test_loader,
-        device=device
-    )
+    if retraining_best_model:
+        summary = evaluate(
+            model=model,
+            criterion=criterion,
+            data_loader=test_loader,
+            device=device
+        )
 
     if logger is not None:
         summary.print()
@@ -125,19 +127,19 @@ def train(
     return summary
 
 
-def _get_epochs(max_epochs: int, proxy_epochs: int | None) -> int:
-    if proxy_epochs is None:
+def _get_epochs(max_epochs: int, n_proxy_epochs: int | None) -> int:
+    if n_proxy_epochs is None:
         return max_epochs
-    return proxy_epochs
+    return n_proxy_epochs
 
 
 def main():
     all_model = HumanActivityClassifier(num_classes=18)
     protocol_model = HumanActivityClassifier(num_classes=12)
     adl_model = HumanActivityClassifier(num_classes=6)
-    train(all_model, max_epochs=50, device="cuda", activity_type=Pamap2ActivityType.ALL)
-    train(protocol_model, max_epochs=50, device="cuda", activity_type=Pamap2ActivityType.PROTOCOL)
-    train(adl_model, max_epochs=50, device="cuda", activity_type=Pamap2ActivityType.ADL)
+    train(all_model, epochs=50, device="cuda", activity_type=Pamap2ActivityType.ALL)
+    train(protocol_model, epochs=50, device="cuda", activity_type=Pamap2ActivityType.PROTOCOL)
+    train(adl_model, epochs=50, device="cuda", activity_type=Pamap2ActivityType.ADL)
 
 
 if __name__ == "__main__":
