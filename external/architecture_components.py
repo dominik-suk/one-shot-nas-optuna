@@ -54,7 +54,7 @@ class GaussianDropout(nn.Module):
     def forward(self, x):
         if self.training:
             stddev = (self.p / (1.0 - self.p)) ** 0.5
-            epsilon = torch.randn_like(x) * stddev
+            epsilon = torch.randn_like(x) * stddev + 1
             return x * epsilon
         else:
             return x
