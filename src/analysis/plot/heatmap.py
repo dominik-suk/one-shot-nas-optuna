@@ -10,8 +10,6 @@ from torchmetrics.classification import MulticlassConfusionMatrix
 
 from src.data.pamap2_labels import Pamap2ActivityType
 from src.data.pamap2_loader import get_data
-from src.models.fixed_architecture import HumanActivityClassifier
-from src.paths import HEATMAPS_DIR, SAMPLED_ADL_MODEL_PATH, SAMPLED_PROTOCOL_MODEL_PATH
 
 
 class HeatmapGenerator:
@@ -42,7 +40,7 @@ class HeatmapGenerator:
 
     def save(self, destination: Path | str) -> None:
         self.generate_heatmap(
-            destination=destination,
+            destination=Path(destination),
             do_plot=False
         )
 
@@ -70,6 +68,7 @@ class HeatmapGenerator:
         plt.tight_layout()
 
         if destination is not None:
+            destination.parent.mkdir(exist_ok=True)
             plt.savefig(destination)
 
         if do_plot:
@@ -102,30 +101,3 @@ class HeatmapGenerator:
             title = ' '.join([part.capitalize() for part in destination.stem.split("_")][:-1])
             return f"Confusion Matrix Heatmap: {title}"
         return "Confusion Matrix Heatmap"
-
-
-def main():
-    protocol_heatmap = HeatmapGenerator(
-        model=HumanActivityClassifier(num_classes=12),
-        state_dict_path=SAMPLED_PROTOCOL_MODEL_PATH,
-    )
-    protocol_heatmap.show()
-    protocol_heatmap.save(HEATMAPS_DIR / f"{SAMPLED_PROTOCOL_MODEL_PATH.stem}_heatmap.png")
-
-    adl_heatmap = HeatmapGenerator(
-        model=HumanActivityClassifier(num_classes=6),
-        state_dict_path=SAMPLED_ADL_MODEL_PATH,
-    )
-    adl_heatmap.show()
-    adl_heatmap.save(HEATMAPS_DIR / f"{SAMPLED_ADL_MODEL_PATH.stem}_heatmap.png")
-
-
-    all_heatmap = HeatmapGenerator(
-        model=HumanActivityClassifier(num_classes=18),
-        state_dict_path=Path("/home/dominik/Documents/Uni/Abschlussarbeit/Code/one-shot-nas-optuna/models/samples/fixed_arch_ALL_acc_53.pth"),
-    )
-    all_heatmap.show()
-    all_heatmap.save(Path("/home/dominik/Documents/Uni/Abschlussarbeit/Code/one-shot-nas-optuna/plots/heatmaps/fixed_arch_ALL_acc_53_heatmap.png"))
-
-if __name__ == "__main__":
-    main()
