@@ -14,11 +14,17 @@ from src.logging.train_logger import TrainLogger
 from src.models.fixed_architecture import HumanActivityClassifier
 
 
-def train_one_epoch(model: nn.Module, optimizer: Optimizer, criterion: nn.Module, training_loader: DataLoader, device: str):
+def train_one_epoch(
+        model: nn.Module,
+        optimizer: Optimizer,
+        criterion: nn.Module,
+        data_loader: DataLoader,
+        device: str = "cuda"
+) -> ModelSummary:
     model.train()
     correct = 0
 
-    for batch_index, (inputs, labels) in enumerate(training_loader):
+    for batch_index, (inputs, labels) in enumerate(data_loader):
         inputs, labels = inputs.to(device), labels.to(device)
         optimizer.zero_grad()
         outputs = model(inputs)
@@ -27,16 +33,20 @@ def train_one_epoch(model: nn.Module, optimizer: Optimizer, criterion: nn.Module
         optimizer.step()
         correct += (outputs.argmax(1) == labels).sum().item()
 
-    assert isinstance(training_loader.dataset, Sized)
-    accuracy = 100 * correct / len(training_loader.dataset)
-    return accuracy
+    assert isinstance(data_loader.dataset, Sized)
+
+    return ModelSummary(
+        loss=None,
+        accuracy=100 * correct / len(data_loader.dataset),
+        f1_score=None
+    )
 
 
 def evaluate(
         model: nn.Module,
         data_loader: DataLoader,
-        device: str = "cuda",
-        criterion: nn.Module = nn.CrossEntropyLoss()
+        criterion: nn.Module = nn.CrossEntropyLoss(),
+        device: str = "cuda"
 ) -> ModelSummary:
     model.eval()
     model.to(device)
@@ -89,25 +99,35 @@ def train(
     epochs = _get_epochs(epochs, n_proxy_epochs)
 
     for epoch in range(epochs):
-        training_accuracy = train_one_epoch(model, optimizer, criterion, training_loader, device)
-        summary = evaluate(model, validation_loader, device, criterion)
-
+        train_summary = train_one_epoch(
+            model=model,
+            optimizer=optimizer,
+            criterion=criterion,
+            data_loader=training_loader,
+            device=device
+        )
+        summary = evaluate(
+            model=model,
+            data_loader=validation_loader,
+            criterion=criterion,
+            device=device
+        )
         if summary.accuracy > best_validation_accuracy:
             best_validation_accuracy = summary.accuracy
             best_weights = copy.deepcopy(model.state_dict())
 
         if logger is not None:
-            logger.on_epoch_end(
+            logger.log(
                 epoch=epoch,
                 total_epochs=epochs,
-                train_acc=training_accuracy,
+                train_acc=train_summary.accuracy,
                 val_acc=summary.accuracy,
                 current_best_acc=best_validation_accuracy,
                 val_loss=summary.loss,
                 f1_score=summary.f1_score,
             )
 
-        if epoch >= 5:
+        if _warmup_period_is_over(current_epoch=epoch):
             scheduler.step()
 
     if load_best_weights:
@@ -125,6 +145,10 @@ def train(
         summary.print()
 
     return summary
+
+
+def _warmup_period_is_over(current_epoch: int) -> bool:
+    return current_epoch >= 5
 
 
 def _get_epochs(max_epochs: int, n_proxy_epochs: int | None) -> int:
