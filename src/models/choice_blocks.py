@@ -139,6 +139,7 @@ class DynamicLinear(nn.Module):
         )
 
     def forward(self, x: torch.Tensor, active_out_features: int, activation: str | None):
+        x = self._flatten(x)
         active_in_features = x.shape[1]
         weight = self.linear.weight[:active_out_features, :active_in_features]
         bias = self.linear.bias[:active_out_features] if self.linear.bias is not None else None
@@ -150,6 +151,13 @@ class DynamicLinear(nn.Module):
             return F.tanh(x)
         else:
             return x
+
+    @staticmethod
+    def _flatten(x: torch.Tensor):
+        if x.dim() == 3:
+            x = x.mean(dim=-1)
+
+        return x
 
 
 class GaussianDropout(nn.Module):
