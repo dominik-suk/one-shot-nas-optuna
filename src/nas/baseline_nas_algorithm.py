@@ -11,8 +11,8 @@ class BaselineNASExperiment(NASExperiment):
             self,
             study: optuna.Study,
             search_space: dict,
-            max_epochs: int = 50,
-            n_proxy_epochs: int = 10,
+            max_epochs: int,
+            n_proxy_epochs: int,
             device: str = "cuda",
     ):
         super().__init__(
