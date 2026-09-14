@@ -57,12 +57,14 @@ class SupernetTrainingWrapper(nn.Module):
 def train_supernet(
         supernet: Supernet,
         search_space: dict,
-        epochs: int = 100,
+        epochs: int,
         device: str = "cuda",
         fixed_architecture_config: dict = None,
         save_path: str = SUPERNET_PATH,
         do_save: bool = True,
 ):
+    optuna.logging.set_verbosity(optuna.logging.WARNING)
+
     wrapped_supernet = SupernetTrainingWrapper(
         supernet,
         search_space,
