@@ -2,13 +2,13 @@ import optuna
 from optuna.samplers import NSGAIISampler
 
 from src.nas.baseline_nas_algorithm import BaselineNASExperiment
-from src.paths import PAMAP2_BASELINE_EXPERIMENT_DB_PATH, BASELINE_BEST_MODEL_PATH
+from src.paths import BASELINE_EXPERIMENT_DB_PATH, BASELINE_BEST_MODEL_PATH
 from src.utils.yaml_io import load_pamap2_search_space
 
 
 def main():
     search_space = load_pamap2_search_space()
-    db_url = f"sqlite:///{PAMAP2_BASELINE_EXPERIMENT_DB_PATH}"
+    db_url = f"sqlite:///{BASELINE_EXPERIMENT_DB_PATH}"
 
     optuna_sampler = NSGAIISampler(
         population_size=10
