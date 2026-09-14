@@ -3,7 +3,7 @@ from pathlib import Path
 import optuna
 
 from src.paths import BASELINE_EXPERIMENT_DB_PATH, SPOS_EXPERIMENT_DB_PATH, SPOS_RANDOM_EXPERIMENT_DB_PATH
-from src.utils.yaml_io import load_pamap2_search_space
+
 
 def get_study(db_path: Path | str) -> optuna.Study:
     return optuna.load_study(study_name=None, storage=f"sqlite:///{db_path}")
