@@ -3,9 +3,9 @@ from dataclasses import dataclass
 
 @dataclass
 class ModelSummary:
-    loss: float
-    accuracy: float
-    f1_score: float
+    loss: float | None
+    accuracy: float | None
+    f1_score: float | None
 
     def print(self):
         print(
