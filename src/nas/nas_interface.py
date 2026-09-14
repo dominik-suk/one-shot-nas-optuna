@@ -12,6 +12,7 @@ from external.build_model import construct_model, ShapeValueError
 from external.sample_blocks import Sampler
 from src.data.pamap2_labels import get_activity_type_from_search_space
 from src.logging.train_logger import TrainLogger
+from src.logging.trial_logger import TrialLogger
 from src.models.train_model import train
 
 
@@ -20,9 +21,10 @@ class NASExperiment(ABC):
             self,
             study: optuna.Study,
             search_space: dict,
-            epochs: int = 50,
+            epochs: int,
             device: str = 'cuda'
     ):
+        optuna.logging.set_verbosity(optuna.logging.WARNING)
         self.study = study
         self.search_space = search_space
         self.input_shape = search_space["input"]
@@ -40,10 +42,12 @@ class NASExperiment(ABC):
         current_trial_number = len(self.study.trials)
         remaining_trials = n_trials - current_trial_number
         if remaining_trials > 0:
-            self.study.optimize(self.objective, n_trials=remaining_trials)
+            logger = TrialLogger(n_trials=n_trials)
+            self.study.optimize(self.objective, n_trials=remaining_trials, callbacks=[logger])
 
     def sample_architecture(self, trial):
-        return Sampler(trial).construct_sample(self.search_space)
+        sample = Sampler(trial).construct_sample(self.search_space)
+        return self._ensure_classification_layer_has_no_activation(sample)
 
     def create_model(self, architecture_config: OrderedDict[Any, Any]) -> nn.Module:
         try:
@@ -58,6 +62,7 @@ class NASExperiment(ABC):
         return self.create_model(self.get_best_architecture())
 
     def train_best_model(self, save_path: str = None):
+        print(f"Training model {self.study.best_trial.number} with accuracy: {self.study.best_trial.value:.2f} from scratch.")
         best_model = self.get_best_model()
         train(
             model=best_model,
@@ -70,3 +75,10 @@ class NASExperiment(ABC):
         if save_path:
             os.makedirs(Path(save_path).parent, exist_ok=True)
             torch.save(best_model.state_dict(), save_path)
+
+    @staticmethod
+    def _ensure_classification_layer_has_no_activation(sample):
+        last_block_id, last_block_dict = next(reversed((sample.items())))
+        last_layer_id = next(reversed(last_block_dict.keys()))
+        last_block_dict[last_layer_id]["params"]["activation"] = None
+        return sample
