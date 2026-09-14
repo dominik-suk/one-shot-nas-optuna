@@ -1,5 +1,3 @@
-import optuna
-
 from src.models.supernet import Supernet
 from src.nas.supernet_trainer import train_supernet
 from src.paths import SUPERNET_PATH
@@ -7,7 +5,6 @@ from src.utils.yaml_io import load_pamap2_search_space, load_pamap2_fixed_arch_c
 
 
 def main():
-    optuna.logging.set_verbosity(optuna.logging.WARNING)
     search_space = load_pamap2_search_space()
     fixed_architecture_config: dict = load_pamap2_fixed_arch_config()
 
