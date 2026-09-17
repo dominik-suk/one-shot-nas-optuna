@@ -81,19 +81,24 @@ def train(
         sequence_length: int = 256,
         load_best_weights: bool = True,
         retraining_best_model: bool = False,
+        data_loaders: tuple[DataLoader, DataLoader, DataLoader] = None,
         device: str = "cuda",
         logger: TrainLogger = None,
 ) -> ModelSummary:
     model.to(device)
-    training_loader, validation_loader, test_loader = get_data(
-        activity_type=activity_type,
-        sequence_length=sequence_length
-    )
+
+    if data_loaders is not None:
+        training_loader, validation_loader, test_loader = data_loaders
+    else:
+        training_loader, validation_loader, test_loader = get_data(
+            activity_type=activity_type,
+            sequence_length=sequence_length
+        )
+
     optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
     criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
 
-    summary = None
     best_validation_accuracy = 0.0
     best_weights = copy.deepcopy(model.state_dict())
     epochs = _get_epochs(epochs, n_proxy_epochs)
@@ -133,13 +138,12 @@ def train(
     if load_best_weights:
         model.load_state_dict(best_weights)
 
-    if retraining_best_model:
-        summary = evaluate(
-            model=model,
-            criterion=criterion,
-            data_loader=test_loader,
-            device=device
-        )
+    summary = evaluate(
+        model=model,
+        criterion=criterion,
+        data_loader=test_loader if retraining_best_model else validation_loader,
+        device=device
+    )
 
     if logger is not None:
         summary.print()
@@ -148,7 +152,7 @@ def train(
 
 
 def _warmup_period_is_over(current_epoch: int) -> bool:
-    return current_epoch >= 5
+    return current_epoch >= 1
 
 
 def _get_epochs(max_epochs: int, n_proxy_epochs: int | None) -> int:

@@ -16,33 +16,32 @@ class Supernet(nn.Module):
 
         for block_config in search_space.get("sequence", []):
             block_id = block_config["block"]
-            op_candidates = block_config.get("op_candidates", [])
-            if isinstance(op_candidates, str):
-                op_candidates = [op_candidates]
+            op_candidates = self._to_list(block_config.get("op_candidates", []))
 
             repeat_config = block_config.get("type_repeat", {})
             depth = repeat_config.get("depth", [1])
-            max_depth = max(depth) if isinstance(depth, list) else depth
+            max_depth = max(self._to_list(depth))
 
             layer_list = nn.ModuleList()
+            op_params = self._resolve_op_params(block_config)
 
             for layer_index in range(max_depth):
                 candidates = nn.ModuleDict()
 
-                for op in op_candidates:
-                    match op:
+                for op_name in op_candidates:
+                    match op_name:
                         case "identity":
                             continue
 
                         case "conv1d":
                             candidates["conv1d"] = DynamicConv1d(
                                 max_channels=self.max_channels,
-                                kernel_sizes=self.default_op_params["conv1d"]["kernel_size"]
+                                kernel_sizes=self._to_list(op_params["conv1d"]["kernel_size"]),
                             )
 
                         case "lstm":
-                            hidden_sizes = self.default_op_params["lstm"]["hidden_size"]
-                            num_layers = self.default_op_params["lstm"]["num_layers"]
+                            hidden_sizes = self._to_list(op_params["lstm"]["hidden_size"])
+                            num_layers = self._to_list(op_params["lstm"]["num_layers"])
                             candidates["lstm"] = DynamicLSTM(
                                 max_channels=self.max_channels,
                                 max_hidden_size=max(hidden_sizes),
@@ -100,13 +99,11 @@ class Supernet(nn.Module):
         channel_size_keys = {"out_channels", "hidden_size", "width"}
         max_channels = 0
 
-        for op_name, params in self.default_op_params.items():
-            for key, values in params.items():
-                if key in channel_size_keys:
-                    if isinstance(values, int):
-                        max_channels = max(max_channels, values)
-                    else:
-                        max_channels = max(max_channels, max(values))
+        for block_config in self._get_complete_sequence():
+            for op_name in block_config.keys():
+                for param, values in block_config[op_name].items():
+                    if param in channel_size_keys:
+                        max_channels = max(max_channels, max(self._to_list(values)))
 
         if self._can_be_bidirectional():
             max_channels = max(max_channels, self._get_max_hidden_size() * 2)
@@ -114,13 +111,44 @@ class Supernet(nn.Module):
         return max(max_channels, self.in_sensors)
 
     def _can_be_bidirectional(self) -> bool:
-        possible_bidirectional_values: list[bool] | bool = self.default_op_params.get("lstm", {}).get("bidirectional", False)
-        if isinstance(possible_bidirectional_values, list):
-            return any(possible_bidirectional_values)
-        return possible_bidirectional_values
+        can_be_bidirectional = False
+
+        for block_config in self._get_complete_sequence():
+            if "lstm" in block_config:
+                possible_bidirectional = block_config["lstm"].get("bidirectional", False)
+                can_be_bidirectional = any([can_be_bidirectional, any(self._to_list(possible_bidirectional))])
+
+        return can_be_bidirectional
 
     def _get_max_hidden_size(self) -> int:
-        hidden_sizes = self.default_op_params.get("lstm", {}).get("hidden_size", 0)
-        if isinstance(hidden_sizes, list):
-            return max(hidden_sizes)
-        return hidden_sizes
+        max_hidden_size = 0
+
+        for block_config in self._get_complete_sequence():
+            if "lstm" in block_config:
+                hidden_sizes = self._to_list(block_config["lstm"]["hidden_size"])
+                max_hidden_size = max(max_hidden_size, max(hidden_sizes))
+
+        return max_hidden_size
+
+    def _get_complete_sequence(self) -> list[dict]:
+        return [self._resolve_op_params(block_config) for block_config in self.search_space.get("sequence", [])]
+
+    def _resolve_op_params(self, block_config: dict) -> dict:
+        complete_block_config = {}
+
+        for op_name in self._to_list(block_config.get("op_candidates", [])):
+            op_config = {}
+            for param_name, value in block_config.get(op_name, {}).items():
+                op_config[param_name] = value
+
+            for param_name, value in self.default_op_params.get(op_name, {}).items():
+                if param_name not in op_config:
+                    op_config[param_name] = value
+
+            complete_block_config[op_name] = op_config
+
+        return complete_block_config
+
+    @staticmethod
+    def _to_list(maybe_list: list | int | str | bool) -> list:
+        return maybe_list if isinstance(maybe_list, list) else [maybe_list]
