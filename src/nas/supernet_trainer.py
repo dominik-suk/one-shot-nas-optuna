@@ -32,13 +32,13 @@ class SupernetTrainingWrapper(nn.Module):
         else:
             self.fixed_subnet_path = self._init_fixed_architecture(fixed_architecture_yaml)
 
-    def _take_one_sample(self) -> OrderedDict[Any, Any]:
+    def take_one_sample(self) -> OrderedDict[Any, Any]:
         return self._get_new_sampler().construct_sample(self.search_space)
 
     def _init_fixed_architecture(self, fixed_architecture_config):
         if fixed_architecture_config is not None:
             return self._get_new_sampler().construct_sample(fixed_architecture_config)
-        return self._take_one_sample()
+        return self.take_one_sample()
 
     @staticmethod
     def _get_new_sampler():
@@ -49,7 +49,7 @@ class SupernetTrainingWrapper(nn.Module):
 
     def forward(self, x):
         if self.training:
-            return self.supernet(x, self._take_one_sample())
+            return self.supernet(x, self.take_one_sample())
         else:
             return self.supernet(x, self.fixed_subnet_path)
 
