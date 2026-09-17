@@ -10,40 +10,46 @@ class ChoiceBlock(nn.Module):
         self.candidates = nn.ModuleDict(candidates)
 
     def forward(self, x: torch.Tensor, op_name: str, params: dict) -> torch.Tensor:
-        if op_name == "identity" or op_name not in self.candidates:
+        if op_name == "identity":
             return x
+        elif op_name == "maxpool":
+            return F.max_pool1d(x, kernel_size=params["kernel_size"], stride=params["stride"])
+        elif op_name == "dropout":
+            return F.dropout(x, p=params["p"], training=self.training)
+        elif op_name == "gaussian_dropout":
+            return self.gaussian_dropout(x, params)
 
-        module = self.candidates[op_name]
+        if op_name in self.candidates:
+            module = self.candidates[op_name]
+            if isinstance(module, DynamicConv1d):
+                return module(
+                    x,
+                    active_out_channels=params["out_channels"],
+                    active_kernel_size=params["kernel_size"],
+                    activation=params.get("activation", None),
+                    stride=params["stride"]
+                )
+            if isinstance(module, DynamicLSTM):
+                return module(
+                    x,
+                    active_hidden_size=params["hidden_size"],
+                    num_layers=params["num_layers"],
+                    bidirectional=params["bidirectional"]
+                )
+            if isinstance(module, DynamicLinear):
+                return module(
+                    x,
+                    active_out_features=params["width"],
+                    activation=params.get("activation", None)
+                )
 
-        if isinstance(module, DynamicConv1d):
-            out_channels = params["out_channels"]
-            kernel_size = params["kernel_size"]
-            stride = params["stride"]
-            activation = params.get("activation", "relu")
-            return module(x, active_out_channels=out_channels, active_kernel_size=kernel_size, activation=activation, stride=stride)
+        raise ValueError(f"Unsupported operation: '{op_name}'")
 
-        elif isinstance(module, DynamicLSTM):
-            hidden_size = params["hidden_size"]
-            num_layers = params["num_layers"]
-            bidirectional = params["bidirectional"]
-            return module(x, active_hidden_size=hidden_size, num_layers=num_layers, bidirectional=bidirectional)
-
-        elif isinstance(module, DynamicLinear):
-            width = params["width"]
-            activation = params.get("activation", None)
-            return module(x, active_out_features=width, activation=activation)
-
-        elif isinstance(module, nn.MaxPool1d):
-            kernel_size = params["kernel_size"]
-            stride = params["stride"]
-            return F.max_pool1d(x, kernel_size=kernel_size, stride=stride)
-
-        elif isinstance(module, (nn.Dropout, GaussianDropout)):
-            p = params["p"]
-            module.p = p
-            return module(x)
-
-        return module(x)
+    def gaussian_dropout(self, x, params: dict):
+        if not self.training or params['p'] == 0:
+            return x
+        stddev = (params['p'] / (1.0 - params['p'])) ** 0.5
+        return x * (1.0 + torch.randn_like(x) * stddev)
 
 
 class DynamicConv1d(nn.Module):
@@ -158,17 +164,3 @@ class DynamicLinear(nn.Module):
             x = x.mean(dim=-1)
 
         return x
-
-
-class GaussianDropout(nn.Module):
-    def __init__(self, p: float = 0.5):
-        super().__init__()
-        self.p = p
-
-    def forward(self, x):
-        if self.training and self.p > 0:
-            stddev = (self.p / (1.0 - self.p)) ** 0.5
-            epsilon = torch.randn_like(x) * stddev + 1.0
-            return x * epsilon
-        else:
-            return x

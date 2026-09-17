@@ -59,7 +59,7 @@ class Supernet(nn.Module):
 
         return x
 
-    def _create_candidate(self, op_name: str, op_params: dict) -> nn.Module:
+    def _create_candidate(self, op_name: str, op_params: dict) -> nn.Module | None:
         if op_name == "conv1d":
             return DynamicConv1d(
                 max_channels=self.max_channels,
@@ -75,13 +75,8 @@ class Supernet(nn.Module):
             )
         elif op_name == "linear":
             return DynamicLinear(max_channels=self.max_channels)
-        elif op_name == "maxpool":
-            return nn.MaxPool1d(2, 2)
-        elif op_name == "dropout":
-            return nn.Dropout(p=0.5)
-        elif op_name == "gaussian_dropout":
-            return GaussianDropout(p=0.5)
-        raise ValueError(f"Unsupported operation: '{op_name}'")
+        else:
+            return None
 
     def _is_last_layer_of_last_block(self, block_index, layer_index, block_sample):
         return block_index >= len(self.blocks) - 1 and f"l{layer_index + 1}" not in block_sample
