@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from src.models.choice_blocks import ChoiceBlock, DynamicConv1d, DynamicLSTM, DynamicLinear, GaussianDropout
+from src.models.choice_blocks import ChoiceBlock, DynamicConv1d, DynamicLSTM, DynamicLinear
 
 
 class Supernet(nn.Module):
@@ -26,11 +26,14 @@ class Supernet(nn.Module):
             op_params = self._resolve_op_params(block_config)
 
             for layer_index in range(max_depth):
-                candidates = nn.ModuleDict({
-                    op: self._create_candidate(op, op_params)
-                    for op in op_candidates
-                    if op != "identity"
-                })
+                candidates = nn.ModuleDict()
+
+                for op in op_candidates:
+                    candidate = self._create_candidate(op, op_params)
+
+                    if candidate is not None:
+                        candidates[op] = candidate
+
                 layer_list.append(ChoiceBlock(f"{block_id}_l{layer_index}", candidates))
 
             self.blocks[block_id] = layer_list
