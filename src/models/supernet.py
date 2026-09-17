@@ -26,40 +26,11 @@ class Supernet(nn.Module):
             op_params = self._resolve_op_params(block_config)
 
             for layer_index in range(max_depth):
-                candidates = nn.ModuleDict()
-
-                for op_name in op_candidates:
-                    match op_name:
-                        case "identity":
-                            continue
-
-                        case "conv1d":
-                            candidates["conv1d"] = DynamicConv1d(
-                                max_channels=self.max_channels,
-                                kernel_sizes=self._to_list(op_params["conv1d"]["kernel_size"]),
-                            )
-
-                        case "lstm":
-                            hidden_sizes = self._to_list(op_params["lstm"]["hidden_size"])
-                            num_layers = self._to_list(op_params["lstm"]["num_layers"])
-                            candidates["lstm"] = DynamicLSTM(
-                                max_channels=self.max_channels,
-                                max_hidden_size=max(hidden_sizes),
-                                max_num_layers=max(num_layers)
-                            )
-
-                        case "linear":
-                            candidates["linear"] = DynamicLinear(max_channels=self.max_channels)
-
-                        case "maxpool":
-                            candidates["maxpool"] = nn.MaxPool1d(2, 2)
-
-                        case "dropout":
-                            candidates["dropout"] = nn.Dropout(p=0.5)
-
-                        case "gaussian_dropout":
-                            candidates["gaussian_dropout"] = GaussianDropout(p=0.5)
-
+                candidates = nn.ModuleDict({
+                    op: self._create_candidate(op, op_params)
+                    for op in op_candidates
+                    if op != "identity"
+                })
                 layer_list.append(ChoiceBlock(f"{block_id}_l{layer_index}", candidates))
 
             self.blocks[block_id] = layer_list
@@ -87,6 +58,30 @@ class Supernet(nn.Module):
                 x = choice_block(x, op_name, op_params)
 
         return x
+
+    def _create_candidate(self, op_name: str, op_params: dict) -> nn.Module:
+        if op_name == "conv1d":
+            return DynamicConv1d(
+                max_channels=self.max_channels,
+                kernel_sizes=self._to_list(op_params["conv1d"]["kernel_size"]),
+            )
+        elif op_name == "lstm":
+            hidden_sizes = self._to_list(op_params["lstm"]["hidden_size"])
+            num_layers = self._to_list(op_params["lstm"]["num_layers"])
+            return DynamicLSTM(
+                max_channels=self.max_channels,
+                max_hidden_size=max(hidden_sizes),
+                max_num_layers=max(num_layers)
+            )
+        elif op_name == "linear":
+            return DynamicLinear(max_channels=self.max_channels)
+        elif op_name == "maxpool":
+            return nn.MaxPool1d(2, 2)
+        elif op_name == "dropout":
+            return nn.Dropout(p=0.5)
+        elif op_name == "gaussian_dropout":
+            return GaussianDropout(p=0.5)
+        raise ValueError(f"Unsupported operation: '{op_name}'")
 
     def _is_last_layer_of_last_block(self, block_index, layer_index, block_sample):
         return block_index >= len(self.blocks) - 1 and f"l{layer_index + 1}" not in block_sample
