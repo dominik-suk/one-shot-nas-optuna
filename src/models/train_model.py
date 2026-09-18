@@ -10,6 +10,7 @@ from torch.utils.data import DataLoader
 from src.data.pamap2_labels import Pamap2ActivityType
 from src.data.pamap2_loader import get_data
 from src.logging.summary import ModelSummary
+from src.logging.supernet_logger import SupernetLogger
 from src.logging.train_logger import TrainLogger
 from src.models.fixed_architecture import HumanActivityClassifier
 
@@ -45,7 +46,7 @@ def train_one_epoch(
 def evaluate(
         model: nn.Module,
         data_loader: DataLoader,
-        criterion: nn.Module = nn.CrossEntropyLoss(),
+        criterion: nn.Module = nn.CrossEntropyLoss(label_smoothing=0.1),
         device: str = "cuda"
 ) -> ModelSummary:
     model.eval()
@@ -83,7 +84,7 @@ def train(
         retraining_best_model: bool = False,
         data_loaders: tuple[DataLoader, DataLoader, DataLoader] = None,
         device: str = "cuda",
-        logger: TrainLogger = None,
+        logger: TrainLogger | SupernetLogger = None,
 ) -> ModelSummary:
     model.to(device)
 
@@ -111,26 +112,41 @@ def train(
             data_loader=training_loader,
             device=device
         )
-        summary = evaluate(
-            model=model,
-            data_loader=validation_loader,
-            criterion=criterion,
-            device=device
-        )
-        if summary.accuracy > best_validation_accuracy:
-            best_validation_accuracy = summary.accuracy
-            best_weights = copy.deepcopy(model.state_dict())
 
-        if logger is not None:
+        if hasattr(model, "evaluate_supernet") and logger is not None and isinstance(logger, SupernetLogger):
+            val_accuracies = model.evaluate_supernet(
+                validation_loader=validation_loader,
+                device=device
+            )
+
             logger.log(
                 epoch=epoch,
                 total_epochs=epochs,
                 train_acc=train_summary.accuracy,
-                val_acc=summary.accuracy,
-                current_best_acc=best_validation_accuracy,
-                val_loss=summary.loss,
-                f1_score=summary.f1_score,
+                val_accuracies=val_accuracies
             )
+        else:
+            summary = evaluate(
+                model=model,
+                data_loader=validation_loader,
+                criterion=criterion,
+                device=device
+            )
+
+            if summary.accuracy > best_validation_accuracy:
+                best_validation_accuracy = summary.accuracy
+                best_weights = copy.deepcopy(model.state_dict())
+
+            if logger is not None:
+                logger.log(
+                    epoch=epoch,
+                    total_epochs=epochs,
+                    train_acc=train_summary.accuracy,
+                    val_acc=summary.accuracy,
+                    current_best_acc=best_validation_accuracy,
+                    val_loss=summary.loss,
+                    f1_score=summary.f1_score,
+                )
 
         if _warmup_period_is_over(current_epoch=epoch):
             scheduler.step()
@@ -152,7 +168,7 @@ def train(
 
 
 def _warmup_period_is_over(current_epoch: int) -> bool:
-    return current_epoch >= 1
+    return current_epoch >= 5
 
 
 def _get_epochs(max_epochs: int, n_proxy_epochs: int | None) -> int:
