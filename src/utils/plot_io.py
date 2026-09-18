@@ -1,9 +1,11 @@
+import os
 from pathlib import Path
 
 from matplotlib import pyplot as plt
 
 
 def safe_save(figure: plt.Figure, destination: Path):
+    os.makedirs(destination.parent, exist_ok=True)
     new_path = get_alternative_path(destination)
     figure.savefig(new_path)
 
