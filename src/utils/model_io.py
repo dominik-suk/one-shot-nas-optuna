@@ -23,6 +23,7 @@ def load_model(state_dict_path: Path, db_path: Path) -> nn.Module:
     model = load_best_model(study=study)
     state_dict = torch.load(f=state_dict_path)
     model.load_state_dict(state_dict)
+
     return model
 
 
@@ -30,6 +31,7 @@ def load_best_model(study: optuna.Study) -> nn.Module:
     search_space = load_pamap2_search_space()
     best_trial = study.best_trial
     best_architecture = Sampler(best_trial).construct_sample(search_space=search_space)
+
     return construct_model(sample=best_architecture, in_dim=search_space["input"], out_dim=search_space["output"])
 
 
