@@ -6,16 +6,25 @@ sequence:
     op_candidates: "conv1d"
     type_repeat:
       type: "vary_all"
-      depth: [2]
+      depth: 2
+    conv1d:
+      kernel_size: 7
+      stride: 1
+      out_channels: 64
+      activation: "relu"
+      padding: "same"
 
   - block: "pool_1"
     op_candidates: "maxpool"
 
   - block: "conv_2"
     op_candidates: "conv1d"
-    type_repeat:
-      type: "vary_all"
-      depth: [1]
+    conv1d:
+      kernel_size: 5
+      stride: 1
+      out_channels: 64
+      activation: "relu"
+      padding: "same"
 
   - block: "lstm"
     op_candidates: "lstm"
@@ -23,36 +32,35 @@ sequence:
   - block: "dropout"
     op_candidates: "dropout"
 
-  - block: "linear"
+  - block: "classifier"
     op_candidates: "linear"
-    type_repeat:
-      type: "vary_all"
-      depth: [1]
+    linear:
+      width: 12
+      activation: null
 
 default_op_params:
   conv1d:
-    kernel_size: [5]
-    stride: [1]
-    out_channels: [64]
-    activation: ["relu"]
+    stride: 1
+    out_channels: 64
+    activation: "relu"
     padding: "same"
 
   maxpool:
-    kernel_size: [2]
-    stride: [2]
+    kernel_size: 2
+    stride: 2
 
   lstm:
-    hidden_size: [128]
-    num_layers: [1]
-    bidirectional: [True]
+    hidden_size: 128
+    num_layers: 1
+    bidirectional: True
     batch_first: True
 
   linear:
-    width: [128]
-    activation: ["relu"]
+    width: 128
+    activation: "relu"
 
   dropout:
-    p: [0.5]
+    p: 0.5
 
   gaussian_dropout:
-    p: [0.5]
+    p: 0.5
