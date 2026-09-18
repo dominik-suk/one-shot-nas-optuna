@@ -26,7 +26,7 @@ class ChoiceBlock(nn.Module):
                     x,
                     active_out_channels=params["out_channels"],
                     active_kernel_size=params["kernel_size"],
-                    activation=params.get("activation", None),
+                    activation=params.get("activation", "relu"),
                     stride=params["stride"]
                 )
             if isinstance(module, DynamicLSTM):
@@ -40,7 +40,7 @@ class ChoiceBlock(nn.Module):
                 return module(
                     x,
                     active_out_features=params["width"],
-                    activation=params.get("activation", None)
+                    activation=params.get("activation", "relu")
                 )
 
         raise ValueError(f"Unsupported operation: '{op_name}'")
