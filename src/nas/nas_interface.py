@@ -46,8 +46,7 @@ class NASExperiment(ABC):
             self.study.optimize(self.objective, n_trials=remaining_trials, callbacks=[logger])
 
     def sample_architecture(self, trial):
-        sample = Sampler(trial).construct_sample(self.search_space)
-        return self._ensure_classification_layer_has_no_activation(sample)
+        return Sampler(trial).construct_sample(self.search_space)
 
     def create_model(self, architecture_config: OrderedDict[Any, Any]) -> nn.Module:
         try:
@@ -75,10 +74,3 @@ class NASExperiment(ABC):
         if save_path:
             os.makedirs(Path(save_path).parent, exist_ok=True)
             torch.save(best_model.state_dict(), save_path)
-
-    @staticmethod
-    def _ensure_classification_layer_has_no_activation(sample):
-        last_block_id, last_block_dict = next(reversed((sample.items())))
-        last_layer_id = next(reversed(last_block_dict.keys()))
-        last_block_dict[last_layer_id]["params"]["activation"] = None
-        return sample
