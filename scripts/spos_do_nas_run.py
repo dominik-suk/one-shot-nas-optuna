@@ -27,10 +27,11 @@ def main():
         supernet=supernet,
         study=study,
         search_space=search_space,
+        retraining_epochs=50,
         device="cuda",
     )
 
-    experiment.run(1000)
+    experiment.run(1000) # population_size * max_iterations => 50 * 20 = 1000
     experiment.train_best_model(save_path=SPOS_BEST_MODEL_PATH)
 
 
