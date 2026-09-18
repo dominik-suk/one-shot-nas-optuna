@@ -1,16 +1,21 @@
+import copy
 import os
 from datetime import datetime
 import pprint
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 import torch
 from torch import nn
 from torch.utils.data import DataLoader
 from torch.utils.flop_counter import FlopCounterMode
 
+from src.data.pamap2_labels import Pamap2ActivityType
 from src.data.pamap2_loader import get_data
+from src.logging.train_logger import TrainLogger
+from src.models.train_model import train
 from src.paths import BENCHMARK_SUMMARY_PATH
 from src.utils.model_io import load_spos_model, load_baseline_model
 
@@ -18,12 +23,14 @@ from src.utils.model_io import load_spos_model, load_baseline_model
 @dataclass
 class BenchmarkSummary:
     timestamp: str
-    model_name: str | None
     gpu: str
+    method: str
+    search_strategy: str
     total_params: int
-    trainable_params: int
     flops: int
-    latency: float
+    latency_ms: float
+    accuracy_mean: float
+    accuracy_std: float
 
     def write_to_csv(self, path: Path = BENCHMARK_SUMMARY_PATH) -> None:
         df = pd.DataFrame([asdict(self)])
@@ -69,7 +76,53 @@ def measure_latency(model: nn.Module, input_tensor: torch.Tensor) -> float:
         return latency_ms
 
 
-def benchmark(model: nn.Module, model_name: str, data_loader: DataLoader, device="cuda") -> BenchmarkSummary:
+def reset_model_weights(model: nn.Module) -> None:
+    for layer in model.modules():
+        if hasattr(layer, "reset_parameters"):
+            layer.reset_parameters()
+
+
+def retrain_and_evaluate(
+        model: nn.Module,
+        n_runs: int,
+        epochs: int,
+        seed: int,
+        activity_type: Pamap2ActivityType = Pamap2ActivityType.PROTOCOL,
+        device: str = "cuda",
+) -> tuple[float, float]:
+    accuracies = []
+
+    for _seed in range(seed, seed + n_runs):
+        torch.manual_seed(_seed)
+        torch.cuda.manual_seed(_seed)
+        np.random.seed(_seed)
+
+        run_model = copy.deepcopy(model)
+        reset_model_weights(run_model)
+
+        summary = train(
+            model=run_model,
+            epochs=epochs,
+            activity_type=activity_type,
+            load_best_weights=True,
+            device=device,
+            logger=TrainLogger(),
+        )
+        accuracies.append(summary.accuracy)
+
+    return float(np.mean(accuracies)), float(np.std(accuracies))
+
+
+def benchmark(
+        model: nn.Module,
+        method: str,
+        data_loader: DataLoader,
+        device="cuda",
+        random_search: bool = False,
+        n_runs: int = 5,
+        epochs: int = 50,
+        activity_type: Pamap2ActivityType = Pamap2ActivityType.PROTOCOL,
+) -> BenchmarkSummary:
     model = model.to(device)
     input_tensor, _ = next(iter(data_loader))
     input_tensor = input_tensor.to(device)
@@ -80,28 +133,38 @@ def benchmark(model: nn.Module, model_name: str, data_loader: DataLoader, device
     flops = count_flops(model, input_tensor)
     latency = measure_latency(model, input_tensor)
 
+    mean_acc, std_acc = retrain_and_evaluate(
+        model=model,
+        n_runs=n_runs,
+        epochs=epochs,
+        activity_type=activity_type,
+        device=device,
+    )
+
     return BenchmarkSummary(
         timestamp=timestamp,
-        model_name=model_name,
         gpu=gpu_name,
+        method=method,
+        search_strategy="Random" if random_search else "NSGA-II",
         total_params=total_params,
-        trainable_params=trainable_params,
         flops=flops,
-        latency=latency,
+        latency_ms=latency,
+        accuracy_mean=mean_acc,
+        accuracy_std=std_acc,
     )
 
 
 def benchmark_spos(random_search: bool = False, do_save: bool = True, device: str = "cuda"):
-    if random_search:
-        model_name = "spos_random"
-
-    else:
-        model_name = "spos"
-
     _, validation_loader, _ = get_data()
-    model = load_spos_model(random_search)
+    model = load_spos_model(random_search=random_search)
 
-    benchmark_summary = benchmark(model, model_name, validation_loader, device=device)
+    benchmark_summary = benchmark(
+        model=model,
+        method="SPOS",
+        data_loader=validation_loader,
+        device=device,
+        random_search=random_search
+    )
     benchmark_summary.print()
 
     if do_save:
@@ -112,7 +175,12 @@ def benchmark_baseline(do_save: bool = True, device: str = "cuda"):
     _, validation_loader, _ = get_data()
     model = load_baseline_model()
 
-    benchmark_summary = benchmark(model, model_name="baseline", data_loader=validation_loader, device=device)
+    benchmark_summary = benchmark(
+        model=model,
+        method="Baseline",
+        data_loader=validation_loader,
+        device=device
+    )
     benchmark_summary.print()
 
     if do_save:
@@ -120,7 +188,7 @@ def benchmark_baseline(do_save: bool = True, device: str = "cuda"):
 
 
 def main():
-    benchmark_spos()
+    benchmark_spos(random_search=False)
     benchmark_spos(random_search=True)
     benchmark_baseline()
 
