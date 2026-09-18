@@ -57,7 +57,7 @@ def count_category_frequencies(prams_to_count: list[dict], all_trials: list[optu
 def filter_useless_params(param_counts: dict) -> dict:
     return {
         name: counts for name, counts in param_counts.items()
-        if parameter_appears_at_least_once(counts) and
+        if parameter_appears_at_least_n_times(counts, n=10) and
            parameter_has_more_than_one_value(counts)
     }
 
@@ -66,8 +66,8 @@ def parameter_has_more_than_one_value(counts: dict) -> bool:
     return len(counts) > 1
 
 
-def parameter_appears_at_least_once(counts: dict) -> bool:
-    return sum(counts.values()) > 0
+def parameter_appears_at_least_n_times(counts: dict, n : int) -> bool:
+    return sum(counts.values()) > n
 
 
 def format_param_name(param_name: str):
