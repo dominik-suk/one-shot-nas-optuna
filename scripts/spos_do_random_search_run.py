@@ -27,6 +27,7 @@ def main():
         supernet=supernet,
         study=study,
         search_space=search_space,
+        retraining_epochs=50,
         device="cuda",
     )
 

@@ -14,12 +14,13 @@ class SinglePathOneShotNASExperiment(NASExperiment):
             supernet: Supernet,
             study: optuna.Study,
             search_space: dict,
+            retraining_epochs: int,
             device: str = 'cuda'
     ):
         super().__init__(
             study=study,
             search_space=search_space,
-            epochs=0,
+            epochs=retraining_epochs,
             device=device
         )
         self.supernet = supernet
@@ -29,7 +30,6 @@ class SinglePathOneShotNASExperiment(NASExperiment):
         subnet_path = self.sample_architecture(trial)
         wrapped_supernet = SupernetTrainingWrapper(
             supernet=self.supernet,
-            search_space=self.search_space,
             fixed_subnet_path=subnet_path,
         )
         summary: ModelSummary = evaluate(
