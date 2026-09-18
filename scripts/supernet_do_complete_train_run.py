@@ -6,15 +6,11 @@ from src.utils.yaml_io import load_pamap2_search_space, load_pamap2_fixed_arch_c
 
 def main():
     search_space = load_pamap2_search_space()
-    fixed_architecture_config: dict = load_pamap2_fixed_arch_config()
-
     supernet = Supernet(search_space)
 
     train_supernet(
         supernet=supernet,
-        search_space=search_space,
         epochs=250,
-        fixed_architecture_config=fixed_architecture_config,
         save_path=SUPERNET_PATH
     )
 
