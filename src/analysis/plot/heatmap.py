@@ -10,6 +10,9 @@ from torchmetrics.classification import MulticlassConfusionMatrix
 
 from src.data.pamap2_labels import Pamap2ActivityType
 from src.data.pamap2_loader import get_data
+from src.utils.model_io import load_spos_model, load_baseline_model
+from src.utils.plot_io import safe_save
+from src.paths import HEATMAPS_DIR
 
 
 class HeatmapGenerator:
@@ -25,7 +28,7 @@ class HeatmapGenerator:
             self.model.load_state_dict(state_dict)
 
         self.device = device
-        self.num_classes: int = int(self.model.num_classes)
+        self.num_classes: int = int(list(model.modules())[-1].out_features)
         self.activity_type: Pamap2ActivityType = self._init_activity_type()
         _, _, test_loader = get_data(activity_type=self.activity_type)
         self.data_loader: DataLoader = test_loader
@@ -38,7 +41,7 @@ class HeatmapGenerator:
             do_plot=True
         )
 
-    def save(self, destination: Path | str) -> None:
+    def save(self, destination: Path | None) -> None:
         self.generate_heatmap(
             destination=Path(destination),
             do_plot=False
@@ -50,7 +53,7 @@ class HeatmapGenerator:
             do_plot: bool = True
     ):
         labels = self.activity_type.labels
-        plt.figure()
+        fig = plt.figure()
         sns.heatmap(
             self.confusion_matrix,
             xticklabels=labels,
@@ -68,8 +71,7 @@ class HeatmapGenerator:
         plt.tight_layout()
 
         if destination is not None:
-            destination.parent.mkdir(exist_ok=True)
-            plt.savefig(destination)
+            safe_save(fig, destination)
 
         if do_plot:
             print(self.confusion_matrix)
@@ -89,9 +91,9 @@ class HeatmapGenerator:
         return cm.compute().cpu().numpy()
 
     def _init_activity_type(self) -> Pamap2ActivityType:
-        if self.model.num_classes == 6:
+        if self.num_classes == 6:
             return Pamap2ActivityType.ADL
-        if self.model.num_classes == 12:
+        if self.num_classes == 12:
             return Pamap2ActivityType.PROTOCOL
         return Pamap2ActivityType.ALL
 
@@ -101,3 +103,36 @@ class HeatmapGenerator:
             title = ' '.join([part.capitalize() for part in destination.stem.split("_")][:-1])
             return f"Confusion Matrix Heatmap: {title}"
         return "Confusion Matrix Heatmap"
+
+
+def generate_spos_heatmap(random_search: bool = False):
+    generate_heatmap_from_model(
+        model=load_spos_model(random_search),
+        destination=HEATMAPS_DIR / f"SPOS_{'Random_' if random_search else ''}Heatmap.png",
+    )
+
+
+def generate_baseline_heatmap():
+    generate_heatmap_from_model(
+        model=load_baseline_model(),
+        destination=HEATMAPS_DIR / f"Baseline_Heatmap.png",
+    )
+
+
+def generate_heatmap_from_model(model, destination: Path | None):
+    heatmap = HeatmapGenerator(
+        model=model,
+        state_dict_path=None,
+    )
+    heatmap.show()
+    heatmap.save(destination=destination)
+
+
+def main():
+    generate_spos_heatmap()
+    generate_spos_heatmap(random_search=True)
+    generate_baseline_heatmap()
+
+
+if __name__ == "__main__":
+    main()
