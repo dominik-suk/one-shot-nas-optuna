@@ -14,7 +14,7 @@ class TrialLogger(Logger):
     def log(self, study: optuna.study.Study, trial: optuna.trial.FrozenTrial) -> None:
         self.buffer.append([
             f"Trial {trial.number + 1}/{self.n_trials}:",
-            f"Accuracy: {trial.value:.2f} %",
+            f"Accuracy: {trial.value:.2f} %" if trial.value is not None else "PRUNED",
             f"Best Trial: Nr. {study.best_trial.number + 1}",
             f"Best Accuracy: {study.best_trial.value:.2f} %",
         ])
