@@ -21,8 +21,9 @@ SPOS_EXPERIMENT_DB_PATH = EXPERIMENTS_DIR / "PAMAP2_SPOS_NAS_Experiment.db"
 BASELINE_RANDOM_EXPERIMENT_DB_PATH = EXPERIMENTS_DIR / "PAMAP2_Baseline_Random_Experiment.db"
 SPOS_RANDOM_EXPERIMENT_DB_PATH = EXPERIMENTS_DIR / "PAMAP2_SPOS_Random_Experiment.db"
 
-RANKING_CORRELATION_DATA_PATH = LOGS_DIR / "ranking_correlation" / "ranking_correlation.csv"
-BENCHMARK_SUMMARY_PATH = EXPERIMENTS_DIR / "benchmark_summary.csv"
+RANKING_CORRELATION_DATA_PATH = LOGS_DIR / "ranking_correlation.csv"
+SUPERNET_TRAIN_TIME_LOGS = LOGS_DIR / "supernet_train_time_logs.csv"
+BENCHMARK_SUMMARY_PATH = LOGS_DIR / "benchmark_summary.csv"
 
 SUPERNET_PATH = MODELS_DIR / "supernet" / "Supernet.pth"
 SPOS_BEST_MODEL_PATH = MODELS_DIR / "supernet" / "Supernet_NAS_Best_Model.pth"
