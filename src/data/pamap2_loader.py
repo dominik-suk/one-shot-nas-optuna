@@ -67,8 +67,7 @@ class Pamap2Dataset(Dataset):
         x = self._normalize(x)
         x = x.transpose(0, 1)
 
-        y = window_labels[-1]                   # -> Activity on last time step
-        # y = torch.mode(window_labels).values  # -> Most common activity in sequence
+        y = torch.mode(window_labels).values
 
         return x, y
 
