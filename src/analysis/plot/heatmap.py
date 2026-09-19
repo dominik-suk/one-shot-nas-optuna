@@ -19,10 +19,12 @@ class HeatmapGenerator:
     def __init__(
             self,
             model: nn.Module,
+            method: str,
             state_dict_path: Path | str | None = None,
             device: str = 'cuda',
     ):
         self.model = model
+        self.method: str = method
         if state_dict_path is not None:
             state_dict = torch.load(state_dict_path)
             self.model.load_state_dict(state_dict)
@@ -33,6 +35,7 @@ class HeatmapGenerator:
         _, _, test_loader = get_data(activity_type=self.activity_type)
         self.data_loader: DataLoader = test_loader
         self.confusion_matrix: np.ndarray = self.generate_confusion_matrix()
+        self.accuracy: float = self.get_accuracy_from_confusion_matrix(self.confusion_matrix)
 
 
     def show(self):
@@ -65,7 +68,7 @@ class HeatmapGenerator:
         )
         plt.xlabel("Predicted", fontweight="bold")
         plt.ylabel("True", fontweight="bold")
-        plt.title(self._get_title_label(destination), fontweight="bold")
+        plt.title(f"Confusion Matrix Heatmap\nMethod: {self.method} Accuracy: {self.accuracy:.2f} %", fontweight="bold")
         plt.xticks(rotation=45, ha="right")
         plt.yticks(rotation=0, ha="right")
         plt.tight_layout()
@@ -90,6 +93,10 @@ class HeatmapGenerator:
                 cm.update(predictions, targets)
         return cm.compute().cpu().numpy()
 
+    @staticmethod
+    def get_accuracy_from_confusion_matrix(cm: np.ndarray) -> float:
+        return  float(np.trace(cm) / np.sum(cm)) * 100.0
+
     def _init_activity_type(self) -> Pamap2ActivityType:
         if self.num_classes == 6:
             return Pamap2ActivityType.ADL
@@ -108,6 +115,7 @@ class HeatmapGenerator:
 def generate_spos_heatmap(random_search: bool = False):
     generate_heatmap_from_model(
         model=load_spos_model(random_search),
+        method=f"SPOS {"Ramdom" if random_search else "NSGA-II"}",
         destination=HEATMAPS_DIR / f"SPOS_{'Random_' if random_search else ''}Heatmap.png",
     )
 
@@ -115,14 +123,16 @@ def generate_spos_heatmap(random_search: bool = False):
 def generate_baseline_heatmap():
     generate_heatmap_from_model(
         model=load_baseline_model(),
+        method=f"Baseline",
         destination=HEATMAPS_DIR / f"Baseline_Heatmap.png",
     )
 
 
-def generate_heatmap_from_model(model, destination: Path | None):
+def generate_heatmap_from_model(model, method, destination: Path | None):
     heatmap = HeatmapGenerator(
         model=model,
         state_dict_path=None,
+        method=method
     )
     heatmap.show()
     heatmap.save(destination=destination)
