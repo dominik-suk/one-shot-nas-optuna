@@ -30,35 +30,12 @@ class RankCorrelation:
     kendall_p: float
 
     def write_to_csv(self, path: Path = RANKING_CORRELATION_DATA_PATH) -> None:
-        rounded_path = path.parent / f"{path.stem}_rounded_values{path.suffix}"
         os.makedirs(path.parent, exist_ok=True)
-
-        class_dict = asdict(self)
-        class_dict['supernet'] = self._to_string(class_dict['supernet'])
-        class_dict['standalone'] = self._to_string(class_dict['standalone'])
-
-        pd.DataFrame([class_dict]).to_csv(
+        pd.DataFrame([asdict(self)]).to_csv(
             path,
             mode='a',
             index=False,
             header=not path.is_file()
-        )
-
-        rounded_dict = {
-            'Timestamp': self.timestamp,
-            'Supernet Architectures': self._to_string(self.supernet, do_round=True),
-            'Standalone Architectures': self._to_string(self.standalone, do_round=True),
-            'Spearman Corr': round(self.spearman_corr, 2),
-            'Spearman p': round(self.spearman_p, 4),
-            'Kendall Corr': round(self.kendall_corr, 2),
-            'Kendall p': round(self.kendall_p, 4),
-        }
-
-        pd.DataFrame([rounded_dict]).to_csv(
-            rounded_path,
-            mode='a',
-            index=False,
-            header=not rounded_path.is_file()
         )
 
     def print(self):
