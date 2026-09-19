@@ -46,10 +46,6 @@ class RankCorrelation:
         print(f"Kendall Correlation: {self.kendall_corr:.2f}")
         print(f"Kendall p: {self.kendall_p:.4f}")
 
-    @staticmethod
-    def _to_string(values: list, do_round: bool = False):
-        return ", ".join([f"A{i + 1}: {value if not do_round else round(value, 2)}" for i, value in enumerate(values)])
-
 
 def sample_n_random_architectures(supernet: Supernet, n: int = 25) -> list:
     sampled_architectures = []
