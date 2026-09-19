@@ -5,6 +5,7 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
 
+from tkinter import Tk
 import numpy as np
 import pandas as pd
 import torch
@@ -57,22 +58,46 @@ class BenchmarkSummary:
             f"F1 Score: {self.f1_mean:.2f} ± {self.f1_std:.2f} %",
         ]), end='\n\n')
 
-    @staticmethod
-    def format_count(count: int) -> str:
-        prefixes = [
-            (1e12, "T"),
-            (1e9, "G"),
-            (1e6, "M"),
-            (1e3, "K"),
-        ]
 
-        for factor, prefix in prefixes:
-            if count >= factor:
-                value = f"{count / factor:.2f}".rstrip("0").rstrip(".")
+def format_count(count: int) -> str:
+    prefixes = [
+        (1e12, "T"),
+        (1e9, "G"),
+        (1e6, "M"),
+        (1e3, "K"),
+    ]
 
-                return f"{value}{prefix}"
+    for factor, prefix in prefixes:
+        if count >= factor:
+            value = f"{count / factor:.2f}".rstrip("0").rstrip(".")
 
-        return f"{count}"
+            return f"{value}{prefix}"
+
+    return f"{count}"
+
+
+def format_benchmark_table(df: pd.DataFrame) -> pd.DataFrame:
+    formatted = pd.DataFrame()
+    formatted["Method"] = df["method"]
+    formatted["Search Strategy"] = df["search_strategy"]
+    formatted["Params"] = df["total_params"].apply(lambda x: f"{format_count(x)}")
+    formatted["FLOPs"] = df["flops"].apply(lambda x: f"{format_count(x)}")
+    formatted["Latency"] = df["latency_ms"].apply(lambda x: f"{x:.3f} ms")
+    formatted["Supernet Time"] = df["supernet_training_minutes"].apply(lambda x: f"{x:.1f} min" if x > 0 else "-")
+    formatted["Search Time"] = df["search_minutes"].apply(lambda x: f"{x:.1f} min")
+    formatted["Accuracy"] = df.apply(lambda row: f"{row['accuracy_mean']:.2f} ± {row['accuracy_std']:.2f} %", axis=1)
+    formatted["Macro F1"] = df.apply(lambda row: f"{row['f1_mean']:.2f} ± {row['f1_std']:.2f} %", axis=1)
+
+    return formatted
+
+
+def copy_latex_table_to_clipboard(df: pd.DataFrame) -> None:
+    r = Tk()
+    r.withdraw()
+    r.clipboard_clear()
+    r.clipboard_append(df.to_latex())
+    r.update()
+    r.destroy()
 
 
 def count_parameters(model: nn.Module) -> tuple[int, int]:
@@ -273,6 +298,11 @@ def main():
     benchmark_spos(random_search=False)
     benchmark_spos(random_search=True)
     benchmark_baseline()
+
+    df = pd.read_csv(BENCHMARK_SUMMARY_PATH)
+    df = format_benchmark_table(df)
+    print(df.to_markdown())
+    copy_latex_table_to_clipboard(df)
 
 
 if __name__ == "__main__":
