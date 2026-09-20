@@ -112,7 +112,7 @@ class HeatmapGenerator:
         return "Confusion Matrix Heatmap"
 
 
-def generate_spos_heatmap(random_search: bool = False):
+def plot_spos_heatmap(random_search: bool = False):
     generate_heatmap_from_model(
         model=load_spos_model(random_search),
         method=f"SPOS {"Ramdom" if random_search else "NSGA-II"}",
@@ -120,7 +120,7 @@ def generate_spos_heatmap(random_search: bool = False):
     )
 
 
-def generate_baseline_heatmap():
+def plot_baseline_heatmap():
     generate_heatmap_from_model(
         model=load_baseline_model(),
         method=f"Baseline",
@@ -136,13 +136,3 @@ def generate_heatmap_from_model(model, method, destination: Path | None):
     )
     heatmap.show()
     heatmap.save(destination=destination)
-
-
-def main():
-    generate_spos_heatmap()
-    generate_spos_heatmap(random_search=True)
-    generate_baseline_heatmap()
-
-
-if __name__ == "__main__":
-    main()
