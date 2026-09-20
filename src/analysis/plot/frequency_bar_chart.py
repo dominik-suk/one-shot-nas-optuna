@@ -12,6 +12,7 @@ from src.utils.plot_io import safe_save
 
 def get_top_10_percent_params(study: optuna.Study):
     trials = study.trials
+    trials = [trial for trial in trials if trial.value is not None]
     trials.sort(key=lambda x: x.value, reverse=True)
     n_top_10_percent = int(len(trials) * 0.1)
     top_trials = trials[:n_top_10_percent]
@@ -54,10 +55,10 @@ def count_category_frequencies(prams_to_count: list[dict], all_trials: list[optu
     return param_counts
 
 
-def filter_useless_params(param_counts: dict) -> dict:
+def filter_useless_params(param_counts: dict, n: int) -> dict:
     return {
         name: counts for name, counts in param_counts.items()
-        if parameter_appears_at_least_n_times(counts, n=10) and
+        if parameter_appears_at_least_n_times(counts, n) and
            parameter_has_more_than_one_value(counts)
     }
 
@@ -86,7 +87,12 @@ def format_title_to_filepath(title: str, suffix: str = '.png') -> Path:
 def plot_bar_chart(title: str, study: optuna.Study, do_save: bool = False):
     top_10_percent_params = get_top_10_percent_params(study)
     param_frequencies = count_category_frequencies(top_10_percent_params, study.trials)
-    param_frequencies = filter_useless_params(param_frequencies)
+
+    param_frequencies = filter_useless_params(param_frequencies, n=max(1, len(top_10_percent_params) // 100))
+
+    if len(param_frequencies) == 0:
+        print(f"No interesting param frequencies found for {title}")
+        return
 
     cols = 3
     num_params = len(param_frequencies)
@@ -126,30 +132,14 @@ def plot_bar_chart(title: str, study: optuna.Study, do_save: bool = False):
     plt.show()
 
 
-def spos_plot_bar_chart(title: str, random_search: bool = False, do_save: bool = False):
+def plot_spos_bar_chart(random_search: bool = False, do_save: bool = False):
     study = get_spos_study(random_search)
-    plot_bar_chart(title, study, do_save)
+    plot_bar_chart(title=f"SPOS {"Random " if random_search else ""} NAS", study=study, do_save=do_save)
 
 
-def baseline_plot_bar_chart(title: str, do_save: bool = False):
+def plot_baseline_bar_chart(do_save: bool = False):
     study = get_baseline_study()
-    plot_bar_chart(title, study, do_save)
-
-
-def main():
-    spos_plot_bar_chart(
-        title="SPOS NAS Category Frequency Analysis",
-        do_save=True,
-    )
-    spos_plot_bar_chart(
-        title="SPOS NAS Random Search Category Frequency Analysis",
-        do_save=True,
-    )
-    baseline_plot_bar_chart(
-        title="Baseline NAS Category Frequency Analysis",
-        do_save=True,
-    )
-
+    plot_bar_chart(title="Baseline NAS", study=study, do_save=do_save)
 
 if __name__ == "__main__":
-    main()
+    plot_baseline_bar_chart()
