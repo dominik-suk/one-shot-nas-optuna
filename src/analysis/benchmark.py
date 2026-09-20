@@ -49,8 +49,8 @@ class BenchmarkSummary:
             f"GPU: {self.gpu}",
             f"Method: {self.method}",
             f"Search Strategy: {self.search_strategy}",
-            f"Total Params: {self.format_count(self.total_params)}",
-            f"FLOPs: {self.format_count(self.flops)}",
+            f"Total Params: {format_count(self.total_params)}",
+            f"FLOPs: {format_count(self.flops)}",
             f"Supernet Training Minutes: {self.supernet_training_minutes:.2f}",
             f"Search Minutes: {self.search_minutes:.2f}",
             f"Latency Ms: {self.latency_ms:.3f}",
@@ -295,10 +295,6 @@ def benchmark_baseline(do_save: bool = True, device: str = "cuda"):
 
 
 def main():
-    benchmark_spos(random_search=False)
-    benchmark_spos(random_search=True)
-    benchmark_baseline()
-
     df = pd.read_csv(BENCHMARK_SUMMARY_PATH)
     df = format_benchmark_table(df)
     print(df.to_markdown())
