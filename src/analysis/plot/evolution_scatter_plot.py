@@ -82,11 +82,3 @@ def scatter_plot(axes_1: tuple, axes_2: tuple, label_1: str, label_2: str, save_
             figure=fig,
             destination=save_destination
         )
-
-
-def main():
-    plot_spos_nsga_versus_random()
-
-
-if __name__ == '__main__':
-    main()
