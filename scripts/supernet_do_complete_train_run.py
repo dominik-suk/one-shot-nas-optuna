@@ -31,7 +31,7 @@ def main():
         supernet=supernet,
         epochs=250,
         save_path=SUPERNET_PATH,
-        do_save=False
+        do_save=True
     )
 
     end_time = time.time()

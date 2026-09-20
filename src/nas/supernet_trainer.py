@@ -7,12 +7,15 @@ import optuna
 import torch
 import torch.nn as nn
 from optuna.samplers import RandomSampler
+from torch.utils.data import DataLoader
 
 from external.sample_blocks import Sampler
 from src.data.pamap2_labels import get_activity_type_from_search_space
+from src.data.pamap2_loader import get_data
+from src.logging.summary import ModelSummary
 from src.logging.supernet_logger import SupernetLogger
 from src.models.supernet import Supernet
-from src.models.train_model import train, evaluate
+from src.models.train_model import evaluate, ModelTrainer
 from src.paths import SUPERNET_PATH
 from src.utils.yaml_io import load_pamap2_fixed_arch_config
 
@@ -22,28 +25,20 @@ class SupernetTrainingWrapper(nn.Module):
             self,
             supernet: Supernet,
             fixed_subnet_path: OrderedDict[Any, Any] | None = None,
-            n_val_architectures: int = 5
     ):
         super().__init__()
         self.supernet = supernet
         self.search_space = supernet.search_space
-
-        if fixed_subnet_path is not None:
-            self.val_architectures = [fixed_subnet_path]
-        else:
-            self.val_architectures = [self._get_new_sampler().construct_sample(load_pamap2_fixed_arch_config())] + [self.take_one_sample() for _ in range(n_val_architectures)]
-
-        self.active_subnet_path = self.val_architectures[0]
+        self.active_subnet_path = fixed_subnet_path
 
     def take_one_sample(self) -> OrderedDict[Any, Any]:
-        return self._get_new_sampler().construct_sample(self.search_space)
+        return self.get_new_sampler().construct_sample(self.search_space)
 
     @staticmethod
-    def _get_new_sampler():
+    def get_new_sampler():
         study = optuna.create_study(sampler=RandomSampler())
         trial = study.ask()
-        sampler = Sampler(trial)
-        return sampler
+        return Sampler(trial)
 
     def forward(self, x):
         if self.training:
@@ -51,20 +46,61 @@ class SupernetTrainingWrapper(nn.Module):
         else:
             return self.supernet(x, self.active_subnet_path)
 
-    def evaluate_supernet(self, validation_loader, device="cuda"):
-        self.eval()
+
+class SupernetTrainer(ModelTrainer):
+    def __init__(
+            self,
+            supernet: SupernetTrainingWrapper,
+            epochs: int,
+            data_loaders: tuple[DataLoader, DataLoader, DataLoader],
+            device: str = "cuda",
+            logger: SupernetLogger = None,
+            n_val_architectures: int = 5
+    ):
+        super().__init__(
+            model=supernet,
+            epochs=epochs,
+            data_loaders=data_loaders,
+            device=device,
+            logger=logger,
+            load_best_weights=False
+        )
+
+        assert isinstance(self.model, SupernetTrainingWrapper)
+        fixed_architecture = self.model.get_new_sampler().construct_sample(load_pamap2_fixed_arch_config())
+        self.val_architectures = [fixed_architecture] + [self.model.take_one_sample() for _ in range(n_val_architectures)]
+
+    def evaluate_supernet(self) -> list[float]:
+        assert isinstance(self.model, SupernetTrainingWrapper)
+
+        self.model.eval()
         accuracies = []
 
         for arch in self.val_architectures:
-            self.active_subnet_path = arch
+            self.model.active_subnet_path = arch
             summary = evaluate(
-                model=self,
-                data_loader=validation_loader,
-                device=device,
+                model=self.model,
+                data_loader=self.validation_loader,
+                criterion=self.criterion,
+                device=self.device,
             )
             accuracies.append(summary.accuracy)
 
         return accuracies
+
+    def validate_epoch(self, epoch: int, train_summary: ModelSummary):
+        accuracies = self.evaluate_supernet()
+
+        if self.logger is not None:
+            self.logger.log(
+                epoch=epoch,
+                total_epochs=self.epochs,
+                train_acc=train_summary.accuracy,
+                val_accuracies=accuracies
+            )
+
+    def run(self, evaluate_on_test: bool = False) -> None:
+        self.train_all_epochs()
 
 
 def train_supernet(
@@ -76,22 +112,22 @@ def train_supernet(
 ):
     optuna.logging.set_verbosity(optuna.logging.WARNING)
     search_space = supernet.search_space
-
-    wrapped_supernet = SupernetTrainingWrapper(
-        supernet,
-        n_val_architectures=5,
-    )
-
-    train(
-        model=wrapped_supernet,
-        epochs=epochs,
-        device=device,
+    data_loaders = get_data(
         activity_type=get_activity_type_from_search_space(search_space),
-        logger=SupernetLogger(),
         sequence_length=search_space["input"][1],
-        load_best_weights=False,
-        retraining_best_model=False,
     )
+
+    wrapped_supernet = SupernetTrainingWrapper(supernet)
+
+    trainer = SupernetTrainer(
+        supernet=wrapped_supernet,
+        epochs=epochs,
+        data_loaders=data_loaders,
+        device=device,
+        logger=SupernetLogger()
+    )
+
+    trainer.run()
 
     if do_save:
         os.makedirs(Path(save_path).parent, exist_ok=True)

@@ -2,45 +2,136 @@ import copy
 from typing import Sized
 
 import torch
+from torch.optim.lr_scheduler import CosineAnnealingLR, LinearLR, SequentialLR
 from sklearn.metrics import f1_score
 from torch import nn, optim
-from torch.optim import Optimizer
 from torch.utils.data import DataLoader
 
 from src.data.pamap2_labels import Pamap2ActivityType
 from src.data.pamap2_loader import get_data
-from src.logging.summary import ModelSummary
+from src.logging.summary import ModelSummary, HistoryTracker
 from src.logging.supernet_logger import SupernetLogger
 from src.logging.train_logger import TrainLogger
 from src.models.fixed_architecture import HumanActivityClassifier
 
 
-def train_one_epoch(
-        model: nn.Module,
-        optimizer: Optimizer,
-        criterion: nn.Module,
-        data_loader: DataLoader,
-        device: str = "cuda"
-) -> ModelSummary:
-    model.train()
-    correct = 0
+class ModelTrainer:
+    def __init__(
+            self,
+            model: nn.Module,
+            epochs: int,
+            data_loaders: tuple[DataLoader, DataLoader, DataLoader],
+            device: str = "cuda",
+            logger: TrainLogger | SupernetLogger | None = None,
+            load_best_weights: bool = True,
+    ):
+        self.model = model.to(device)
+        self.epochs = epochs
+        self.train_loader, self.validation_loader, self.test_loader = data_loaders
+        self.device = device
+        self.logger = logger
+        self.load_best_weights = load_best_weights
 
-    for batch_index, (inputs, labels) in enumerate(data_loader):
-        inputs, labels = inputs.to(device), labels.to(device)
-        optimizer.zero_grad()
-        outputs = model(inputs)
-        loss = criterion(outputs, labels)
-        loss.backward()
-        optimizer.step()
-        correct += (outputs.argmax(1) == labels).sum().item()
+        self.epochs_without_improvement = 0
+        self.patience_factor = 10
+        self.criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+        self.optimizer = optim.AdamW(self.model.parameters(), lr=5e-4, weight_decay=1e-3)
 
-    assert isinstance(data_loader.dataset, Sized)
+        warmup_epochs = 5
+        warmup_scheduler = LinearLR(
+            self.optimizer,
+            start_factor=0.05,
+            end_factor=1.0,
+            total_iters=warmup_epochs
+        )
 
-    return ModelSummary(
-        loss=None,
-        accuracy=100 * correct / len(data_loader.dataset),
-        f1_score=None
-    )
+        cosine_scheduler = CosineAnnealingLR(
+            self.optimizer,
+            T_max=self.epochs - warmup_epochs,
+            eta_min=1e-6
+        )
+
+        self.scheduler = SequentialLR(
+            self.optimizer,
+            schedulers=[warmup_scheduler, cosine_scheduler],
+            milestones=[warmup_epochs]
+        )
+
+        self.best_acc = 0.0
+        self.best_weights = copy.deepcopy(model.state_dict())
+        self.tracker = HistoryTracker()
+
+    def train_one_epoch(self) -> ModelSummary:
+        self.model.train()
+        correct = 0
+        total_loss = 0.0
+
+        for batch_index, (inputs, labels) in enumerate(self.train_loader):
+            inputs, labels = inputs.to(self.device), labels.to(self.device)
+
+            if self.model.training:
+                inputs = inputs + torch.randn_like(inputs) * 0.01
+
+            self.optimizer.zero_grad()
+            outputs = self.model(inputs)
+            loss = self.criterion(outputs, labels)
+            loss.backward()
+            self.optimizer.step()
+            total_loss += loss.item()
+            correct += (outputs.argmax(1) == labels).sum().item()
+
+        assert isinstance(self.train_loader.dataset, Sized)
+
+        return ModelSummary(
+            loss=total_loss / len(self.train_loader),
+            accuracy=100 * correct / len(self.train_loader.dataset),
+            f1_score=None
+        )
+
+    def validate_epoch(self, epoch: int, train_summary: ModelSummary):
+        summary = evaluate(self.model, self.validation_loader, self.criterion, self.device)
+
+        if summary.accuracy > self.best_acc:
+            self.best_acc = summary.accuracy
+            self.best_weights = copy.deepcopy(self.model.state_dict())
+            self.epochs_without_improvement = 0
+        else:
+            self.epochs_without_improvement += 1
+
+        if self.logger is not None:
+            self.logger.log(
+                epoch=epoch,
+                total_epochs=self.epochs,
+                train_acc=train_summary.accuracy,
+                val_acc=summary.accuracy,
+                current_best_acc=self.best_acc,
+                val_loss=summary.loss,
+                f1_score=summary.f1_score
+            )
+
+        self.tracker.update(epoch, train_summary, summary)
+
+    def train_all_epochs(self):
+        for epoch in range(self.epochs):
+            train_summary = self.train_one_epoch()
+            self.validate_epoch(epoch, train_summary)
+            self.scheduler.step()
+
+            if self.epochs_without_improvement >= self.patience_factor:
+                break
+
+    def run(self, evaluate_on_test: bool = False) -> ModelSummary:
+        self.train_all_epochs()
+
+        if self.load_best_weights:
+            self.model.load_state_dict(self.best_weights)
+
+        evaluation_loader = self.test_loader if evaluate_on_test else self.validation_loader
+        summary = evaluate(self.model, evaluation_loader, self.criterion, self.device)
+        summary.history = self.tracker.to_dict()
+        summary.print()
+
+        return summary
 
 
 def evaluate(
@@ -84,91 +175,23 @@ def train(
         retraining_best_model: bool = False,
         data_loaders: tuple[DataLoader, DataLoader, DataLoader] = None,
         device: str = "cuda",
-        logger: TrainLogger | SupernetLogger = None,
+        logger: TrainLogger = None,
 ) -> ModelSummary:
-    model.to(device)
+    if data_loaders is None:
+        data_loaders = get_data(activity_type=activity_type, sequence_length=sequence_length)
 
-    if data_loaders is not None:
-        training_loader, validation_loader, test_loader = data_loaders
-    else:
-        training_loader, validation_loader, test_loader = get_data(
-            activity_type=activity_type,
-            sequence_length=sequence_length
-        )
-
-    optimizer = optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=epochs)
-    criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
-
-    best_validation_accuracy = 0.0
-    best_weights = copy.deepcopy(model.state_dict())
     epochs = _get_epochs(epochs, n_proxy_epochs)
 
-    for epoch in range(epochs):
-        train_summary = train_one_epoch(
-            model=model,
-            optimizer=optimizer,
-            criterion=criterion,
-            data_loader=training_loader,
-            device=device
-        )
-
-        if hasattr(model, "evaluate_supernet") and logger is not None and isinstance(logger, SupernetLogger):
-            val_accuracies = model.evaluate_supernet(
-                validation_loader=validation_loader,
-                device=device
-            )
-
-            logger.log(
-                epoch=epoch,
-                total_epochs=epochs,
-                train_acc=train_summary.accuracy,
-                val_accuracies=val_accuracies
-            )
-        else:
-            summary = evaluate(
-                model=model,
-                data_loader=validation_loader,
-                criterion=criterion,
-                device=device
-            )
-
-            if summary.accuracy > best_validation_accuracy:
-                best_validation_accuracy = summary.accuracy
-                best_weights = copy.deepcopy(model.state_dict())
-
-            if logger is not None:
-                logger.log(
-                    epoch=epoch,
-                    total_epochs=epochs,
-                    train_acc=train_summary.accuracy,
-                    val_acc=summary.accuracy,
-                    current_best_acc=best_validation_accuracy,
-                    val_loss=summary.loss,
-                    f1_score=summary.f1_score,
-                )
-
-        if _warmup_period_is_over(current_epoch=epoch):
-            scheduler.step()
-
-    if load_best_weights:
-        model.load_state_dict(best_weights)
-
-    summary = evaluate(
+    trainer = ModelTrainer(
         model=model,
-        criterion=criterion,
-        data_loader=test_loader if retraining_best_model else validation_loader,
-        device=device
+        epochs=epochs,
+        data_loaders=data_loaders,
+        device=device,
+        logger=logger,
+        load_best_weights=load_best_weights
     )
 
-    if logger is not None:
-        summary.print()
-
-    return summary
-
-
-def _warmup_period_is_over(current_epoch: int) -> bool:
-    return current_epoch >= 5
+    return trainer.run(evaluate_on_test=retraining_best_model)
 
 
 def _get_epochs(max_epochs: int, n_proxy_epochs: int | None) -> int:
