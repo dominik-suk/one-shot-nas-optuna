@@ -9,7 +9,8 @@ class TrainLogger(Logger):
             total_epochs: int,
             train_acc: float,
             val_acc: float,
-            current_best_acc: float,
+            best_acc: float,
+            best_epoch: int,
             val_loss: float,
             f1_score: float,
     ) -> None:
@@ -18,8 +19,9 @@ class TrainLogger(Logger):
             f"Validation Loss: {val_loss:.4f}",
             f"Training Accuracy: {train_acc:.2f} %",
             f"Validation Accuracy: {val_acc:.2f} %",
-            f"Best Accuracy: {current_best_acc:.2f} %",
             f"F1 Score: {f1_score:.2f} %",
+            f"Best Accuracy: {best_acc:.2f} %",
+            f"Best Epoch: {best_epoch}",
         ])
 
         if self._buffer_is_full() or self._training_is_complete(epoch, total_epochs):
