@@ -4,10 +4,16 @@ from pathlib import Path
 from matplotlib import pyplot as plt
 
 
+
 def safe_save(figure: plt.Figure, destination: Path):
     os.makedirs(destination.parent, exist_ok=True)
     new_path = get_alternative_path(destination)
+    figure.savefig(get_pgf_path(new_path), backend='pgf', bbox_inches='tight')
     figure.savefig(new_path)
+
+
+def get_pgf_path(path: Path) -> Path:
+    return path.parent / f"{path.stem}.pgf"
 
 
 def get_alternative_path(filepath: Path) -> Path:
