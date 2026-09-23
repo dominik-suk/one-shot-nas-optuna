@@ -7,13 +7,15 @@ from typing import Any
 import optuna
 import torch
 from torch import nn
+from torch.utils.data import DataLoader
 
 from external.build_model import construct_model, ShapeValueError
 from external.sample_blocks import Sampler
 from src.data.pamap2_labels import get_activity_type_from_search_space
 from src.logging.train_logger import TrainLogger
 from src.logging.trial_logger import TrialLogger
-from src.models.train_model import train
+from src.training.hyperparameters import get_default_criterion
+from src.training.model_trainer import ModelTrainer
 
 
 class NASExperiment(ABC):
@@ -21,18 +23,24 @@ class NASExperiment(ABC):
             self,
             study: optuna.Study,
             search_space: dict,
-            epochs: int,
+            dataset: tuple[DataLoader, DataLoader, DataLoader],
+            retraining_epochs: int,
             device: str = 'cuda'
     ):
         optuna.logging.set_verbosity(optuna.logging.WARNING)
         self.study = study
         self.search_space = search_space
+        self.dataset = dataset
+        self.retraining_epochs = retraining_epochs
+        self.device = device
+
         self.input_shape = search_space["input"]
         self.sequence_length = self.input_shape[1]
         self.output_shape = search_space["output"]
         self.activity_type = get_activity_type_from_search_space(search_space)
-        self.epochs = epochs
-        self.device = device
+        self.training_loader, self.validation_loader, self.test_loader = dataset
+
+        self.criterion = get_default_criterion()
 
     @abstractmethod
     def objective(self, trial: optuna.Trial):
@@ -63,14 +71,19 @@ class NASExperiment(ABC):
     def train_best_model(self, save_path: str = None):
         print(f"Training model {self.study.best_trial.number} with accuracy: {self.study.best_trial.value:.2f} from scratch.")
         best_model = self.get_best_model()
-        train(
+
+        trainer = ModelTrainer(
             model=best_model,
-            epochs=self.epochs,
-            activity_type=self.activity_type,
+            epochs=self.retraining_epochs,
+            device=self.device,
+            dataset=self.dataset,
+            logger=TrainLogger(),
             load_best_weights=True,
-            retraining_best_model=True,
-            logger=TrainLogger()
+            evaluate_on_test_set=True,
         )
+
+        trainer.run()
+
         if save_path:
             os.makedirs(Path(save_path).parent, exist_ok=True)
             torch.save(best_model.state_dict(), save_path)

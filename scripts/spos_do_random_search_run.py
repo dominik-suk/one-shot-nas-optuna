@@ -2,6 +2,7 @@ import optuna
 import torch
 from optuna.samplers import RandomSampler
 
+from src.data.pamap2_loader import load_pamap2_dataset
 from src.models.supernet import Supernet
 from src.nas.spos_nas import SinglePathOneShotNASExperiment
 from src.paths import SUPERNET_PATH, SPOS_RANDOM_EXPERIMENT_DB_PATH, SPOS_RANDOM_BEST_MODEL_PATH
@@ -11,6 +12,7 @@ from src.utils.yaml_io import load_pamap2_search_space
 def main():
     search_space = load_pamap2_search_space()
     db_url = f"sqlite:///{SPOS_RANDOM_EXPERIMENT_DB_PATH}"
+    dataset = load_pamap2_dataset()
 
     supernet = Supernet(search_space)
     supernet.load_state_dict(torch.load(SUPERNET_PATH))
@@ -27,6 +29,7 @@ def main():
         supernet=supernet,
         study=study,
         search_space=search_space,
+        dataset=dataset,
         retraining_epochs=50,
         device="cuda",
     )

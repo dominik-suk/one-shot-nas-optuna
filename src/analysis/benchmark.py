@@ -4,8 +4,8 @@ import random
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
-
 from tkinter import Tk
+
 import numpy as np
 import pandas as pd
 import torch
@@ -13,10 +13,9 @@ from torch import nn
 from torch.utils.data import DataLoader
 from torch.utils.flop_counter import FlopCounterMode
 
-from src.data.pamap2_labels import Pamap2ActivityType
-from src.data.pamap2_loader import get_data
+from src.data.pamap2_loader import load_pamap2_dataset
 from src.logging.train_logger import TrainLogger
-from src.models.train_model import train
+from src.training.model_trainer import ModelTrainer
 from src.paths import BENCHMARK_SUMMARY_PATH, SUPERNET_TRAIN_TIME_LOGS
 from src.utils.model_io import load_spos_model, load_baseline_model
 from src.utils.optuna_io import get_spos_study, get_baseline_study
@@ -153,10 +152,10 @@ def set_seed(seed: int = 42):
 
 def retrain_and_evaluate(
         model: nn.Module,
+        dataset: tuple[DataLoader, DataLoader, DataLoader],
         n_runs: int = 5,
         epochs: int = 30,
         seed: int = 42,
-        activity_type: Pamap2ActivityType = Pamap2ActivityType.PROTOCOL,
         device: str = "cuda",
 ) -> tuple[tuple[float, float], tuple[float, float]]:
     accuracies = []
@@ -164,19 +163,20 @@ def retrain_and_evaluate(
 
     for _seed in range(seed, seed + n_runs):
         set_seed(_seed)
-        run_model = copy.deepcopy(model)
-        reset_model_weights(run_model)
+        model_copy = copy.deepcopy(model)
+        reset_model_weights(model_copy)
 
-        summary = train(
-            model=run_model,
+        trainer = ModelTrainer(
+            model=model_copy,
             epochs=epochs,
-            activity_type=activity_type,
-            load_best_weights=True,
-            retraining_best_model=True,
+            dataset=dataset,
             device=device,
             logger=TrainLogger(),
+            load_best_weights=True,
+            evaluate_on_test_set=True
         )
 
+        summary = trainer.run()
         accuracies.append(summary.accuracy)
         f1_scores.append(summary.f1_score)
 
@@ -215,15 +215,15 @@ def get_supernet_train_minutes(gpu: str) -> float:
 def benchmark(
         model: nn.Module,
         method: str,
-        data_loader: DataLoader,
+        dataset: tuple[DataLoader, DataLoader, DataLoader],
         device="cuda",
         random_search: bool = False,
         n_runs: int = 5,
         epochs: int = 50,
-        activity_type: Pamap2ActivityType = Pamap2ActivityType.PROTOCOL,
 ) -> BenchmarkSummary:
     model = model.to(device)
-    input_tensor, _ = next(iter(data_loader))
+    _, validation_loader, _ = dataset
+    input_tensor, _ = next(iter(validation_loader))
     input_tensor = input_tensor[:1].to(device)
 
     timestamp = datetime.now().strftime("%d.%m.%Y - %H:%M")
@@ -237,7 +237,7 @@ def benchmark(
         n_runs=n_runs,
         epochs=epochs,
         seed=42,
-        activity_type=activity_type,
+        dataset=dataset,
         device=device,
     )
 
@@ -262,13 +262,13 @@ def benchmark(
 
 
 def benchmark_spos(random_search: bool = False, do_save: bool = True, device: str = "cuda"):
-    _, validation_loader, _ = get_data()
+    dataset = load_pamap2_dataset()
     model = load_spos_model(random_search=random_search)
 
     benchmark_summary = benchmark(
         model=model,
         method="SPOS",
-        data_loader=validation_loader,
+        dataset=dataset,
         device=device,
         random_search=random_search
     )
@@ -279,13 +279,13 @@ def benchmark_spos(random_search: bool = False, do_save: bool = True, device: st
 
 
 def benchmark_baseline(do_save: bool = True, device: str = "cuda"):
-    _, validation_loader, _ = get_data()
+    dataset = load_pamap2_dataset()
     model = load_baseline_model()
 
     benchmark_summary = benchmark(
         model=model,
         method="Baseline",
-        data_loader=validation_loader,
+        dataset=dataset,
         device=device
     )
     benchmark_summary.print()

@@ -1,11 +1,11 @@
 import optuna
+from torch.utils.data import DataLoader
 
-from src.data.pamap2_loader import get_data
 from src.logging.summary import ModelSummary
 from src.models.supernet import Supernet
-from src.models.train_model import evaluate
+from src.training.evaluation import evaluate
 from src.nas.nas_interface import NASExperiment
-from src.nas.supernet_trainer import SupernetTrainingWrapper
+from src.training.supernet_trainer import SupernetTrainingWrapper
 
 
 class SinglePathOneShotNASExperiment(NASExperiment):
@@ -14,34 +14,34 @@ class SinglePathOneShotNASExperiment(NASExperiment):
             supernet: Supernet,
             study: optuna.Study,
             search_space: dict,
+            dataset: tuple[DataLoader, DataLoader, DataLoader],
             retraining_epochs: int,
             device: str = 'cuda'
     ):
         super().__init__(
             study=study,
             search_space=search_space,
-            epochs=retraining_epochs,
+            dataset=dataset,
+            retraining_epochs=retraining_epochs,
             device=device
         )
+
         self.supernet = supernet
-        self.data_loader = self._init_data_loader()
 
     def objective(self, trial: optuna.Trial):
         subnet_path = self.sample_architecture(trial)
+        self.create_model(subnet_path)
+
         wrapped_supernet = SupernetTrainingWrapper(
             supernet=self.supernet,
             fixed_subnet_path=subnet_path,
         )
+
         summary: ModelSummary = evaluate(
             model=wrapped_supernet,
-            data_loader=self.data_loader,
+            evaluation_loader=self.validation_loader,
+            criterion=self.criterion,
             device=self.device,
         )
-        return summary.accuracy,
 
-    def _init_data_loader(self):
-        _, validation_loader, _ = get_data(
-            activity_type=self.activity_type,
-            sequence_length=self.sequence_length,
-        )
-        return validation_loader
+        return summary.accuracy,

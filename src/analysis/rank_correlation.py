@@ -11,10 +11,12 @@ from scipy.stats import kendalltau, spearmanr
 from torch.utils.data import DataLoader
 
 from external.build_model import construct_model, ShapeValueError
-from src.data.pamap2_loader import get_data
+from src.data.pamap2_loader import load_pamap2_dataset
 from src.models.supernet import Supernet
-from src.models.train_model import train, evaluate
-from src.nas.supernet_trainer import SupernetTrainingWrapper
+from src.training.hyperparameters import get_default_criterion
+from src.training.model_trainer import ModelTrainer
+from src.training.evaluation import evaluate
+from src.training.supernet_trainer import SupernetTrainingWrapper
 from src.paths import SUPERNET_PATH, RANKING_CORRELATION_DATA_PATH
 from src.utils.yaml_io import load_pamap2_search_space
 
@@ -56,6 +58,8 @@ def sample_n_random_architectures(supernet: Supernet, n: int = 25) -> list:
 
     while len(sampled_architectures) < n:
         architecture = wrapped_supernet.take_one_sample()
+        if wrapped_supernet.architecture_is_valid(architecture):
+            sampled_architectures.append(architecture)
 
         try:
             _ = construct_model(
@@ -71,8 +75,12 @@ def sample_n_random_architectures(supernet: Supernet, n: int = 25) -> list:
     return sampled_architectures
 
 
-def conduct_rank_correlation(n: int, device: str = 'cuda'):
-    training_loader, validation_loader, test_loader = get_data()
+def conduct_rank_correlation(
+        n: int,
+        proxy_epochs: int = 15,
+        device: str = 'cuda'
+):
+    training_loader, validation_loader, test_loader = load_pamap2_dataset()
     search_space = load_pamap2_search_space()
 
     supernet = Supernet(search_space=search_space).to(device)
@@ -88,7 +96,8 @@ def conduct_rank_correlation(n: int, device: str = 'cuda'):
 
     standalone_acc_values = evaluate_with_standalone_training(
         sampled_architectures=sampled_architectures,
-        data_loaders=(training_loader, validation_loader, test_loader),
+        dataset=(training_loader, validation_loader, test_loader),
+        proxy_epochs=proxy_epochs,
         search_space=search_space,
         device=device
     )
@@ -116,7 +125,8 @@ def evaluate_with_supernet(supernet: Supernet, sampled_architectures: list, vali
         )
         summary = evaluate(
             model=wrapped_supernet,
-            data_loader=validation_loader,
+            evaluation_loader=validation_loader,
+            criterion=get_default_criterion(),
             device=device
         )
         print(f"Supernet Architecture Nr. {i + 1}: {summary.accuracy:.2f} % Accuracy")
@@ -125,7 +135,13 @@ def evaluate_with_supernet(supernet: Supernet, sampled_architectures: list, vali
     return supernet_acc_values
 
 
-def evaluate_with_standalone_training(sampled_architectures: list, data_loaders: tuple[DataLoader, DataLoader, DataLoader], search_space: dict, device: str = 'cuda'):
+def evaluate_with_standalone_training(
+        sampled_architectures: list,
+        dataset: tuple[DataLoader, DataLoader, DataLoader],
+        proxy_epochs: int,
+        search_space: dict,
+        device: str = 'cuda'
+):
     standalone_values = []
 
     for i, architecture in enumerate(sampled_architectures):
@@ -135,17 +151,17 @@ def evaluate_with_standalone_training(sampled_architectures: list, data_loaders:
             out_dim=search_space['output']
         ).to(device)
 
-        summary = train(
+        trainer = ModelTrainer(
             model=standalone_model,
-            epochs=50,
-            n_proxy_epochs=15,
-            load_best_weights=True,
-            retraining_best_model=False,
-            data_loaders=data_loaders,
+            dataset=dataset,
+            epochs=proxy_epochs,
             device=device,
             logger=None,
+            load_best_weights=True,
+            evaluate_on_test_set=False
         )
 
+        summary = trainer.run()
         print(f"Standalone Architecture Nr. {i + 1}: {summary.accuracy:.2f} % Accuracy")
         standalone_values.append(summary.accuracy)
 

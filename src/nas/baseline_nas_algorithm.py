@@ -1,8 +1,8 @@
 import optuna
+from torch.utils.data import DataLoader
 
-from src.logging.summary import ModelSummary
 from src.logging.train_logger import TrainLogger
-from src.models.train_model import train
+from src.training.model_trainer import ModelTrainer
 from src.nas.nas_interface import NASExperiment
 
 
@@ -11,29 +11,35 @@ class BaselineNASExperiment(NASExperiment):
             self,
             study: optuna.Study,
             search_space: dict,
-            max_epochs: int,
+            dataset: tuple[DataLoader, DataLoader, DataLoader],
             n_proxy_epochs: int,
+            retraining_epochs: int,
             device: str = "cuda",
     ):
         super().__init__(
             study=study,
             search_space=search_space,
-            epochs=max_epochs,
+            dataset=dataset,
+            retraining_epochs=retraining_epochs,
             device=device
         )
+
         self.n_proxy_epochs = n_proxy_epochs
 
     def objective(self, trial: optuna.Trial) -> float:
         architecture = self.sample_architecture(trial)
         model = self.create_model(architecture)
-        summary: ModelSummary = train(
+
+        trainer = ModelTrainer(
             model=model,
-            epochs=self.epochs,
-            n_proxy_epochs=self.n_proxy_epochs,
-            activity_type=self.activity_type,
-            sequence_length=self.sequence_length,
-            load_best_weights=True,
-            retraining_best_model=False,
+            dataset=self.dataset,
+            epochs=self.n_proxy_epochs,
+            device=self.device,
             logger=TrainLogger(),
+            load_best_weights=True,
+            evaluate_on_test_set=False
         )
+
+        summary = trainer.run()
+
         return summary.accuracy
