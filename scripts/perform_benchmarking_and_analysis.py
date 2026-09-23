@@ -1,5 +1,5 @@
 from src import analysis
-
+import matplotlib as mpl
 
 def analyze_spos(random_search: bool = False):
     analysis.benchmark_spos(random_search)
@@ -26,6 +26,14 @@ def analyze_baseline():
 
 
 def main():
+    mpl.use("pgf")
+    mpl.rcParams.update({
+        "pgf.texsystem": "pdflatex",
+        "font.family": "serif",
+        "text.usetex": True,
+        "pgf.rcfonts": False,
+    })
+
     analyze_spos()
     analyze_spos(random_search=True)
     analyze_baseline()
