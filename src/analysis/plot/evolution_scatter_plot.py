@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 from matplotlib import ticker as mtick
 
 
-from src.utils.optuna_io import get_spos_study, get_baseline_study
+from src.utils.optuna_io import get_spos_study
 from src.utils.plot_io import safe_save
 from src.paths import SCATTER_PLOTS_DIR
 
@@ -56,8 +56,8 @@ def scatter_plot(axes_1: tuple, axes_2: tuple, label_1: str, label_2: str, save_
     ax.scatter(x_2, y_2, color='springgreen', marker='*', label=label_2, alpha=0.9)
     ax.scatter(x_1, y_1, color='orange', marker='o', label=label_1, alpha=0.8)
 
-    ax.axhline(y=max(y_1), color='darkorange', linestyle='--', linewidth=1.2, alpha=0.9, label=f"{label_1} max ({max(y_1):.2f} %)")
-    ax.axhline(y=max(y_2), color='seagreen', linestyle='--', linewidth=1.2, alpha=0.9, label=f"{label_2} max ({max(y_2):.2f} %)")
+    ax.axhline(y=max(y_1), color='darkorange', linestyle='--', linewidth=1.2, alpha=0.9, label=f"{label_1} max ({max(y_1):.2f} \\%)")
+    ax.axhline(y=max(y_2), color='seagreen', linestyle='--', linewidth=1.2, alpha=0.9, label=f"{label_2} max ({max(y_2):.2f} \\%)")
 
 
     ax.set_xlabel('Evolution iters', fontsize=12)
