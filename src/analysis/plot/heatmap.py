@@ -9,7 +9,7 @@ from torch.utils.data import DataLoader
 from torchmetrics.classification import MulticlassConfusionMatrix
 
 from src.data.pamap2_labels import Pamap2ActivityType
-from src.data.pamap2_loader import get_data
+from src.data.pamap2_loader import load_pamap2_dataset
 from src.utils.model_io import load_spos_model, load_baseline_model
 from src.utils.plot_io import safe_save
 from src.paths import HEATMAPS_DIR
@@ -32,7 +32,7 @@ class HeatmapGenerator:
         self.device = device
         self.num_classes: int = int(list(model.modules())[-1].out_features)
         self.activity_type: Pamap2ActivityType = self._init_activity_type()
-        _, _, test_loader = get_data(activity_type=self.activity_type)
+        _, _, test_loader = load_pamap2_dataset(activity_type=self.activity_type)
         self.data_loader: DataLoader = test_loader
         self.confusion_matrix: np.ndarray = self.generate_confusion_matrix()
         self.accuracy: float = self.get_accuracy_from_confusion_matrix(self.confusion_matrix)
@@ -64,11 +64,12 @@ class HeatmapGenerator:
             annot=False,
             cmap="Blues",
             fmt='d',
-            square=True
+            square=True,
+            rasterized=True,
         )
         plt.xlabel("Predicted", fontweight="bold")
         plt.ylabel("True", fontweight="bold")
-        plt.title(f"Confusion Matrix Heatmap\nMethod: {self.method} Accuracy: {self.accuracy:.2f} %", fontweight="bold")
+        plt.title(f"Confusion Matrix Heatmap\nMethod: {self.method} Accuracy: {self.accuracy:.2f} \%", fontweight="bold")
         plt.xticks(rotation=45, ha="right")
         plt.yticks(rotation=0, ha="right")
         plt.tight_layout()
