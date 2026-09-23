@@ -1,10 +1,4 @@
-import os
 from dataclasses import dataclass
-from pathlib import Path
-
-import pandas as pd
-
-from src.paths import TRAIN_HISTORY_DIR
 
 
 @dataclass
