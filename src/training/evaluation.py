@@ -4,16 +4,17 @@ from torch import nn
 from torch.utils.data import DataLoader
 
 from src.logging.summary import ModelSummary
+from src.training.hyperparameters import get_default_criterion
 
 
 def evaluate(
         model: nn.Module,
         evaluation_loader: DataLoader,
-        criterion: nn.Module,
         device: str = "cuda"
 ) -> ModelSummary:
     model.eval()
     model.to(device)
+    criterion = get_default_criterion()
     total_loss = 0.0
     all_predictions = []
     all_labels = []
