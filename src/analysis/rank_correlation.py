@@ -1,3 +1,4 @@
+import json
 import os
 import time
 from dataclasses import dataclass, asdict
@@ -10,16 +11,17 @@ import torch
 from scipy.stats import kendalltau, spearmanr
 from torch.utils.data import DataLoader
 
-from external.build_model import construct_model, ShapeValueError
+from external.build_model import construct_model
 from src.data.pamap2_loader import load_pamap2_dataset
+from src.models.subnet import Subnet, SubnetPathGenerator
 from src.models.supernet import Supernet
-from src.training.hyperparameters import get_default_criterion
-from src.training.model_trainer import ModelTrainer
+from src.paths import SUPERNET_PATH, RANKING_CORRELATION_DATA_PATH, LOGS_DIR
 from src.training.evaluation import evaluate
-from src.training.supernet_trainer import SupernetTrainingWrapper
-from src.paths import SUPERNET_PATH, RANKING_CORRELATION_DATA_PATH
+from src.training.model_trainer import ModelTrainer
 from src.utils.yaml_io import load_pamap2_search_space
 
+CHECKPOINT_CSV = LOGS_DIR / "rank_correlation_checkpoint.csv"
+ARCHITECTURES_JSON = LOGS_DIR / "rank_correlation_architectures.json"
 
 @dataclass
 class RankCorrelation:
@@ -49,58 +51,98 @@ class RankCorrelation:
         print(f"Kendall p: {self.kendall_p:.4f}")
 
 
-def sample_n_random_architectures(supernet: Supernet, n: int = 25) -> list:
-    sampled_architectures = []
-
-    wrapped_supernet = SupernetTrainingWrapper(
-        supernet=supernet,
+def sample_n_random_architectures(supernet: Supernet, n: int = 500) -> list:
+    path_generator = SubnetPathGenerator(
+        search_space=supernet.search_space,
     )
 
-    while len(sampled_architectures) < n:
-        architecture = wrapped_supernet.take_one_sample()
-        if wrapped_supernet.architecture_is_valid(architecture):
-            sampled_architectures.append(architecture)
+    return [path_generator.generate() for _ in range(n)]
 
-        try:
-            _ = construct_model(
-                architecture,
-                in_dim=supernet.search_space['input'],
-                out_dim=supernet.search_space['output']
-            )
-            sampled_architectures.append(architecture)
+def get_or_create_architectures(supernet: Supernet, n: int) -> list:
+    if ARCHITECTURES_JSON.exists():
+        with open(ARCHITECTURES_JSON) as f:
+            architecture_samples = json.load(f)
 
-        except ShapeValueError:
-            continue
+        if len(architecture_samples) >= n:
+            return architecture_samples[:n]
 
-    return sampled_architectures
+    path_generator = SubnetPathGenerator(supernet.search_space)
+    architecture_samples = [path_generator.generate() for _ in range(n)]
+
+    os.makedirs(ARCHITECTURES_JSON.parent, exist_ok=True)
+    with open(ARCHITECTURES_JSON, 'w') as f:
+        json.dump(architecture_samples, f)
+
+    return architecture_samples
 
 
 def conduct_rank_correlation(
         n: int,
-        proxy_epochs: int = 15,
+        epochs: int,
         device: str = 'cuda'
 ):
-    training_loader, validation_loader, test_loader = load_pamap2_dataset()
+    dataset = load_pamap2_dataset()
+    training_loader, validation_loader, test_loader = dataset
     search_space = load_pamap2_search_space()
 
     supernet = Supernet(search_space=search_space).to(device)
     supernet_state_dict = torch.load(f=SUPERNET_PATH, map_location=device)
     supernet.load_state_dict(supernet_state_dict)
-    sampled_architectures = sample_n_random_architectures(supernet, n)
+    sampled_architectures = get_or_create_architectures(supernet, n)
 
-    supernet_acc_values = evaluate_with_supernet(
-        supernet=supernet,
-        sampled_architectures=sampled_architectures,
-        validation_loader=validation_loader
-    )
+    if CHECKPOINT_CSV.exists():
+        checkpoint_df = pd.read_csv(CHECKPOINT_CSV)
 
-    standalone_acc_values = evaluate_with_standalone_training(
-        sampled_architectures=sampled_architectures,
-        dataset=(training_loader, validation_loader, test_loader),
-        proxy_epochs=proxy_epochs,
-        search_space=search_space,
-        device=device
-    )
+        if checkpoint_df.empty:
+            completed_indices = set()
+        else:
+            completed_indices = checkpoint_df["index"].dropna().astype(int).tolist()
+
+    else:
+        completed_indices = set()
+
+    for i, arch in enumerate(sampled_architectures):
+        if i in completed_indices:
+            continue
+
+        print(f"Evaluating architecture {i + 1}/{len(sampled_architectures)}")
+        subnet = Subnet(supernet=supernet, path=arch)
+        supernet_summary = evaluate(
+            model=subnet,
+            evaluation_loader=validation_loader,
+            device=device
+        )
+        supernet_acc = supernet_summary.accuracy
+
+        standalone_model = construct_model(
+            arch,
+            in_dim=search_space["input"],
+            out_dim=search_space["output"],
+        ).to(device)
+
+        trainer = ModelTrainer(
+            model=standalone_model,
+            dataset=dataset,
+            epochs=epochs,
+            device=device,
+            logger=None,
+            load_best_weights=True,
+            evaluate_on_test_set=False
+        )
+        standalone_summary = trainer.run()
+        standalone_acc = standalone_summary.accuracy
+
+        new_row = pd.DataFrame([{
+            "index": i,
+            "supernet_acc": supernet_acc,
+            "standalone_acc": standalone_acc
+        }])
+        new_row.to_csv(CHECKPOINT_CSV, mode="a", index=False, header=not CHECKPOINT_CSV.exists())
+        print(f"Supernet: {supernet_acc:.2f} %, Standalone: {standalone_acc:.2f} %")
+
+    acc_values_df = pd.read_csv(CHECKPOINT_CSV).head(n)
+    supernet_acc_values = acc_values_df["supernet_acc"].tolist()
+    standalone_acc_values = acc_values_df["standalone_acc"].tolist()
 
     spearman_corr, spearman_p = spearmanr(supernet_acc_values, standalone_acc_values)
     kendall_corr, kendall_p = kendalltau(supernet_acc_values, standalone_acc_values)
@@ -118,18 +160,19 @@ def conduct_rank_correlation(
 
 def evaluate_with_supernet(supernet: Supernet, sampled_architectures: list, validation_loader, device: str = 'cuda'):
     supernet_acc_values = []
-    for i, architecture in enumerate(sampled_architectures):
-        wrapped_supernet = SupernetTrainingWrapper(
+    for i, architecture_config in enumerate(sampled_architectures):
+        subnet = Subnet(
             supernet=supernet,
-            fixed_subnet_path=architecture,
+            path=architecture_config,
         )
+
         summary = evaluate(
-            model=wrapped_supernet,
+            model=subnet,
             evaluation_loader=validation_loader,
-            criterion=get_default_criterion(),
             device=device
         )
-        print(f"Supernet Architecture Nr. {i + 1}: {summary.accuracy:.2f} % Accuracy")
+
+        print(f"Supernet Architecture Nr. {i + 1} of {len(sampled_architectures)}: {summary.accuracy:.2f} % Accuracy")
         supernet_acc_values.append(summary.accuracy)
 
     return supernet_acc_values
@@ -162,7 +205,7 @@ def evaluate_with_standalone_training(
         )
 
         summary = trainer.run()
-        print(f"Standalone Architecture Nr. {i + 1}: {summary.accuracy:.2f} % Accuracy")
+        print(f"Standalone Architecture Nr. {i + 1} of {len(sampled_architectures)}: {summary.accuracy:.2f} % Accuracy")
         standalone_values.append(summary.accuracy)
 
     return standalone_values
@@ -172,7 +215,7 @@ if __name__ == "__main__":
     time_start = time.time()
     optuna.logging.set_verbosity(optuna.logging.ERROR)
 
-    rank_correlation = conduct_rank_correlation(n=100, device='cuda')
+    rank_correlation = conduct_rank_correlation(n=500, epochs=50, device='cuda')
     rank_correlation.print()
     rank_correlation.write_to_csv()
 
