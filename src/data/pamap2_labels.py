@@ -29,6 +29,9 @@ class Pamap2ActivityType(Enum):
     def labels(self) -> list[str]:
         return [PAMAP2_ACTIVITIES[_id] for _id in self.valid_ids]
 
+    @property
+    def label_activity_pairs(self) -> dict[str, int]:
+        return {label: _id for _id, label in PAMAP2_ACTIVITIES.items()}
 
 def get_activity_type_from_search_space(search_space: dict) -> Pamap2ActivityType:
     if search_space["output"] == 18:
