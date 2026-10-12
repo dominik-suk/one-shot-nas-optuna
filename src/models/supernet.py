@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from src.models.choice_blocks import ChoiceBlock, DynamicConv1d, DynamicLSTM, DynamicLinear
+from src.models.choice_blocks import ChoiceBlock, DynamicConv1d, DynamicLinear, StaticLSTM
 
 
 class Supernet(nn.Module):
@@ -38,25 +38,21 @@ class Supernet(nn.Module):
 
             self.blocks[block_id] = layer_list
 
-    def forward(self, x: torch.Tensor, model_sample: dict):
+    def forward(self, x: torch.Tensor, architecture_configuration: dict):
         # x: [Batch Size, Features, Sequence Length]
         for block_index, (block_id, layers) in enumerate(self.blocks.items()):
-            if block_id not in model_sample:
+            if block_id not in architecture_configuration:
                 continue
 
-            block_sample = model_sample[block_id]
+            block_configuration = architecture_configuration[block_id]
 
             for layer_index, choice_block in enumerate(layers):
-                if f"l{layer_index}" not in block_sample:
+                if f"l{layer_index}" not in block_configuration:
                     continue
 
-                layer_sample = block_sample[f"l{layer_index}"]
-                op_name = layer_sample["operation"]
-                op_params = layer_sample["params"]
-
-                if self._is_last_layer_of_last_block(block_index, layer_index, block_sample):
-                    op_params["width"] = self.num_classes
-                    op_params["activation"] = None
+                layer_configuration = block_configuration[f"l{layer_index}"]
+                op_name = layer_configuration["operation"]
+                op_params = layer_configuration["params"]
 
                 x = choice_block(x, op_name, op_params)
 
@@ -68,18 +64,20 @@ class Supernet(nn.Module):
                 max_channels=self.max_channels,
                 kernel_sizes=self._to_list(op_params["conv1d"]["kernel_size"]),
             )
+
         elif op_name == "lstm":
             hidden_sizes = self._to_list(op_params["lstm"]["hidden_size"])
             num_layers = self._to_list(op_params["lstm"]["num_layers"])
-            return DynamicLSTM(
+            return StaticLSTM(
                 max_channels=self.max_channels,
-                max_hidden_size=max(hidden_sizes),
-                max_num_layers=max(num_layers)
+                hidden_sizes=hidden_sizes,
+                possible_num_layers=num_layers,
             )
+
         elif op_name == "linear":
             return DynamicLinear(max_channels=self.max_channels)
-        else:
-            return None
+
+        return None
 
     def _is_last_layer_of_last_block(self, block_index, layer_index, block_sample):
         return block_index >= len(self.blocks) - 1 and f"l{layer_index + 1}" not in block_sample
