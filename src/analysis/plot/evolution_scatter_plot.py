@@ -4,10 +4,10 @@ import optuna
 from matplotlib import pyplot as plt
 from matplotlib import ticker as mtick
 
-
+from src.paths import SCATTER_PLOTS_DIR
 from src.utils.optuna_io import get_spos_study
 from src.utils.plot_io import safe_save
-from src.paths import SCATTER_PLOTS_DIR
+
 
 def extract_generation_data(study: optuna.Study, population_size: int = 50) -> dict[int, list[float]]:
     generations = {}
@@ -16,7 +16,9 @@ def extract_generation_data(study: optuna.Study, population_size: int = 50) -> d
         generation = (trial.number // population_size) + 1
         if generation not in generations:
             generations[generation] = []
-        generations[generation].append(trial.value)
+        generations[generation].append(
+            trial.value if trial.value is not None else 0.0
+        )
 
     return generations
 
@@ -82,3 +84,6 @@ def scatter_plot(axes_1: tuple, axes_2: tuple, label_1: str, label_2: str, save_
             figure=fig,
             destination=save_destination
         )
+
+if __name__ == '__main__':
+    plot_spos_nsga_versus_random(do_save=True)
