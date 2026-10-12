@@ -9,8 +9,8 @@ from src.data.pamap2_labels import get_activity_type_from_search_space
 from src.data.pamap2_loader import load_pamap2_dataset
 from src.logging.supernet_logger import SupernetLogger
 from src.models.supernet import Supernet
-from src.training.supernet_trainer import SupernetTrainer
 from src.paths import SUPERNET_PATH, SUPERNET_TRAIN_TIME_LOGS
+from src.training.supernet_trainer import SupernetTrainer
 from src.utils.yaml_io import load_pamap2_search_space
 
 
@@ -41,7 +41,7 @@ def main():
         dataset=dataset,
         device='cuda',
         logger=SupernetLogger(),
-        n_val_architectures=5
+        n_validation_architectures=5
     )
 
     supernet_trainer.run()
