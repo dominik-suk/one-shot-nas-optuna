@@ -10,9 +10,9 @@ from torchmetrics.classification import MulticlassConfusionMatrix
 
 from src.data.pamap2_labels import Pamap2ActivityType
 from src.data.pamap2_loader import load_pamap2_dataset
+from src.paths import HEATMAPS_DIR
 from src.utils.model_io import load_spos_model, load_baseline_model
 from src.utils.plot_io import safe_save
-from src.paths import HEATMAPS_DIR
 
 
 class HeatmapGenerator:
@@ -116,7 +116,7 @@ class HeatmapGenerator:
 def plot_spos_heatmap(random_search: bool = False):
     generate_heatmap_from_model(
         model=load_spos_model(random_search),
-        method=f"SPOS {"Ramdom" if random_search else "NSGA-II"}",
+        method=f"SPOS {"Random" if random_search else "NSGA-II"}",
         destination=HEATMAPS_DIR / f"SPOS_{'Random_' if random_search else ''}Heatmap.png",
     )
 
