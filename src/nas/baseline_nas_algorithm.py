@@ -1,9 +1,10 @@
 import optuna
 from torch.utils.data import DataLoader
 
+from external.build_model import ShapeValueError
 from src.logging.train_logger import TrainLogger
-from src.training.model_trainer import ModelTrainer
 from src.nas.nas_interface import NASExperiment
+from src.training.model_trainer import ModelTrainer
 
 
 class BaselineNASExperiment(NASExperiment):
@@ -28,7 +29,11 @@ class BaselineNASExperiment(NASExperiment):
 
     def objective(self, trial: optuna.Trial) -> float:
         architecture = self.sample_architecture(trial)
-        model = self.create_model(architecture)
+
+        try:
+            model = self.create_model(architecture)
+        except ShapeValueError:
+            return 0.0
 
         trainer = ModelTrainer(
             model=model,
