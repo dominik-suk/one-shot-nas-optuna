@@ -9,12 +9,11 @@ import torch
 from torch import nn
 from torch.utils.data import DataLoader
 
-from external.build_model import construct_model, ShapeValueError
-from external.sample_blocks import Sampler
+from external.build_model import construct_model
+from external.sample_blocks import Sampler as SampleConstructor
 from src.data.pamap2_labels import get_activity_type_from_search_space
 from src.logging.train_logger import TrainLogger
 from src.logging.trial_logger import TrialLogger
-from src.training.hyperparameters import get_default_criterion
 from src.training.model_trainer import ModelTrainer
 
 
@@ -34,33 +33,33 @@ class NASExperiment(ABC):
         self.retraining_epochs = retraining_epochs
         self.device = device
 
+        self.n_trials = None
         self.input_shape = search_space["input"]
         self.sequence_length = self.input_shape[1]
         self.output_shape = search_space["output"]
         self.activity_type = get_activity_type_from_search_space(search_space)
         self.training_loader, self.validation_loader, self.test_loader = dataset
 
-        self.criterion = get_default_criterion()
-
     @abstractmethod
     def objective(self, trial: optuna.Trial):
         pass
 
     def run(self, n_trials: int = 100):
-        current_trial_number = len(self.study.trials)
-        remaining_trials = n_trials - current_trial_number
-        if remaining_trials > 0:
-            logger = TrialLogger(n_trials=n_trials)
-            self.study.optimize(self.objective, n_trials=remaining_trials, callbacks=[logger])
+        self.n_trials = n_trials
+        logger = TrialLogger(n_trials=n_trials)
+        self.study.optimize(self.objective, callbacks=[logger, self._stop_when_n_complete])
 
-    def sample_architecture(self, trial):
-        return Sampler(trial).construct_sample(self.search_space)
+    def _stop_when_n_complete(self, study: optuna.study.Study, trial: optuna.trial.Trial):
+        complete_trials = [t for t in study.trials if t.state == optuna.trial.TrialState.COMPLETE]
+
+        if len(complete_trials) >= self.n_trials:
+            study.stop()
+
+    def sample_architecture(self, trial: optuna.trial.Trial):
+        return SampleConstructor(trial).construct_sample(self.search_space)
 
     def create_model(self, architecture_config: OrderedDict[Any, Any]) -> nn.Module:
-        try:
-            return construct_model(architecture_config, self.input_shape, self.output_shape)
-        except ShapeValueError:
-            raise optuna.TrialPruned()
+        return construct_model(architecture_config, self.input_shape, self.output_shape)
 
     def get_best_architecture(self):
         return self.sample_architecture(self.study.best_trial)

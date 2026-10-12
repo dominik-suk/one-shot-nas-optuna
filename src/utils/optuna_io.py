@@ -2,7 +2,7 @@ from pathlib import Path
 
 import optuna
 
-from src.paths import BASELINE_EXPERIMENT_DB_PATH, SPOS_EXPERIMENT_DB_PATH, SPOS_RANDOM_EXPERIMENT_DB_PATH
+from src.paths import BASELINE_EXPERIMENT_DB_PATH, SPOS_EXPERIMENT_DB_PATH, SPOS_RANDOM_EXPERIMENT_DB_PATH, SPOS_CONSTRAINT_EXPERIMENT_DB_PATH
 
 
 def get_study(db_path: Path | str) -> optuna.Study:
@@ -18,6 +18,8 @@ def get_spos_study(random_search: bool = False) -> optuna.Study:
         return get_study(SPOS_RANDOM_EXPERIMENT_DB_PATH)
     return get_study(SPOS_EXPERIMENT_DB_PATH)
 
+def get_constraint_spos_study() -> optuna.Study:
+    return get_study(SPOS_CONSTRAINT_EXPERIMENT_DB_PATH)
 
 def format_optuna_params(params: dict) -> dict:
     nested_params = {}
