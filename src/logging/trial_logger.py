@@ -12,11 +12,18 @@ class TrialLogger(Logger):
         self.log(study=study, trial=trial)
 
     def log(self, study: optuna.study.Study, trial: optuna.trial.FrozenTrial) -> None:
+        try:
+            best_trial = study.best_trial.number + 1
+            best_acc = f"{study.best_trial.value:.2f} %"
+        except ValueError:
+            best_trial = 'None'
+            best_acc = 'None'
+
         self.buffer.append([
             f"Trial {trial.number + 1}/{self.n_trials}:",
             f"Accuracy: {trial.value:.2f} %" if trial.value is not None else "PRUNED",
-            f"Best Trial: Nr. {study.best_trial.number + 1}",
-            f"Best Accuracy: {study.best_trial.value:.2f} %",
+            f"Best Trial: Nr. {best_trial}",
+            f"Best Accuracy: {best_acc}",
         ])
 
         if self._buffer_is_full() or self._optimization_is_complete(trial=trial):
