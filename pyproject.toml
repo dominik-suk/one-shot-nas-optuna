@@ -4,10 +4,12 @@ version = "0.1.0"
 description = "An implementation of the Single Path One-Shot with Uniform Sampling (SPOS) Neural Architecture Search algorithm using the Optuna framework."
 requires-python = ">=3.12"
 dependencies = [
+    "kaleido>=1.4.0",
     "matplotlib>=3.11.1",
     "optuna>=4.9.0",
     "pandas>=3.0.5",
     "pandas-stubs~=3.0.5",
+    "plotly>=7.1.0",
     "scikit-learn>=1.9.0",
     "scipy-stubs~=1.18.1",
     "seaborn>=0.13.2",
