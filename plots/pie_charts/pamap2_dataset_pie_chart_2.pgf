@@ -1,0 +1,303 @@
+%% Creator: Matplotlib, PGF backend
+%%
+%% To include the figure in your LaTeX document, write
+%%   \input{<filename>.pgf}
+%%
+%% Make sure the required packages are loaded in your preamble
+%%   \usepackage{pgf}
+%%
+%% Also ensure that all the required font packages are loaded; for instance,
+%% the lmodern package is sometimes necessary when using math font.
+%%   \usepackage{lmodern}
+%%
+%% Figures using additional raster images can only be included by \input if
+%% they are in the same directory as the main LaTeX file. For loading figures
+%% from other directories you can use the `import` package
+%%   \usepackage{import}
+%%
+%% and then include the figures with
+%%   \import{<path to file>}{<filename>.pgf}
+%%
+%% Matplotlib used the following preamble
+%%   \def\mathdefault#1{#1}
+%%   \everymath=\expandafter{\the\everymath\displaystyle}
+%%   \IfFileExists{scrextend.sty}{
+%%     \usepackage[fontsize=10.000000pt]{scrextend}
+%%   }{
+%%     \renewcommand{\normalsize}{\fontsize{10.000000}{12.000000}\selectfont}
+%%     \normalsize
+%%   }
+%%   
+%%   \ifdefined\pdftexversion\else  % non-pdftex case.
+%%     \usepackage{fontspec}
+%%     \setmainfont{DejaVuSerif.ttf}[Path=\detokenize{/home/dominik/Documents/Uni/Abschlussarbeit/Code/one-shot-nas-optuna/.venv/lib/python3.12/site-packages/matplotlib/mpl-data/fonts/ttf/}]
+%%     \setsansfont{DejaVuSans.ttf}[Path=\detokenize{/home/dominik/Documents/Uni/Abschlussarbeit/Code/one-shot-nas-optuna/.venv/lib/python3.12/site-packages/matplotlib/mpl-data/fonts/ttf/}]
+%%     \setmonofont{DejaVuSansMono.ttf}[Path=\detokenize{/home/dominik/Documents/Uni/Abschlussarbeit/Code/one-shot-nas-optuna/.venv/lib/python3.12/site-packages/matplotlib/mpl-data/fonts/ttf/}]
+%%   \fi
+%%   \makeatletter\@ifpackageloaded{underscore}{}{\usepackage[strings]{underscore}}\makeatother
+%%
+\begingroup%
+\makeatletter%
+\begin{pgfpicture}%
+\pgfpathrectangle{\pgfpointorigin}{\pgfqpoint{8.425996in}{4.900000in}}%
+\pgfusepath{use as bounding box, clip}%
+\begin{pgfscope}%
+\pgfsetbuttcap%
+\pgfsetmiterjoin%
+\definecolor{currentfill}{rgb}{1.000000,1.000000,1.000000}%
+\pgfsetfillcolor{currentfill}%
+\pgfsetlinewidth{0.000000pt}%
+\definecolor{currentstroke}{rgb}{1.000000,1.000000,1.000000}%
+\pgfsetstrokecolor{currentstroke}%
+\pgfsetdash{}{0pt}%
+\pgfpathmoveto{\pgfqpoint{0.000000in}{0.000000in}}%
+\pgfpathlineto{\pgfqpoint{8.425996in}{0.000000in}}%
+\pgfpathlineto{\pgfqpoint{8.425996in}{4.900000in}}%
+\pgfpathlineto{\pgfqpoint{0.000000in}{4.900000in}}%
+\pgfpathlineto{\pgfqpoint{0.000000in}{0.000000in}}%
+\pgfpathclose%
+\pgfusepath{fill}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\pgfsetbuttcap%
+\pgfsetmiterjoin%
+\definecolor{currentfill}{rgb}{0.121569,0.466667,0.705882}%
+\pgfsetfillcolor{currentfill}%
+\pgfsetlinewidth{2.007500pt}%
+\definecolor{currentstroke}{rgb}{1.000000,1.000000,1.000000}%
+\pgfsetstrokecolor{currentstroke}%
+\pgfsetdash{}{0pt}%
+\pgfpathmoveto{\pgfqpoint{2.450000in}{4.330000in}}%
+\pgfpathcurveto{\pgfqpoint{2.078669in}{4.330000in}}{\pgfqpoint{1.715533in}{4.219984in}}{\pgfqpoint{1.406637in}{4.013903in}}%
+\pgfpathcurveto{\pgfqpoint{1.097740in}{3.807822in}}{\pgfqpoint{0.856717in}{3.514770in}}{\pgfqpoint{0.714128in}{3.171907in}}%
+\pgfpathlineto{\pgfqpoint{2.450000in}{2.450000in}}%
+\pgfpathlineto{\pgfqpoint{2.450000in}{4.330000in}}%
+\pgfpathclose%
+\pgfusepath{stroke,fill}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\pgfsetbuttcap%
+\pgfsetmiterjoin%
+\definecolor{currentfill}{rgb}{0.682353,0.780392,0.909804}%
+\pgfsetfillcolor{currentfill}%
+\pgfsetlinewidth{2.007500pt}%
+\definecolor{currentstroke}{rgb}{1.000000,1.000000,1.000000}%
+\pgfsetstrokecolor{currentstroke}%
+\pgfsetdash{}{0pt}%
+\pgfpathmoveto{\pgfqpoint{0.714128in}{3.171907in}}%
+\pgfpathcurveto{\pgfqpoint{0.577112in}{2.842442in}}{\pgfqpoint{0.536684in}{2.480679in}}{\pgfqpoint{0.597591in}{2.129095in}}%
+\pgfpathcurveto{\pgfqpoint{0.658498in}{1.777512in}}{\pgfqpoint{0.818259in}{1.450429in}}{\pgfqpoint{1.058116in}{1.186252in}}%
+\pgfpathlineto{\pgfqpoint{2.450000in}{2.450000in}}%
+\pgfpathlineto{\pgfqpoint{0.714128in}{3.171907in}}%
+\pgfpathclose%
+\pgfusepath{stroke,fill}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\pgfsetbuttcap%
+\pgfsetmiterjoin%
+\definecolor{currentfill}{rgb}{1.000000,0.498039,0.054902}%
+\pgfsetfillcolor{currentfill}%
+\pgfsetlinewidth{2.007500pt}%
+\definecolor{currentstroke}{rgb}{1.000000,1.000000,1.000000}%
+\pgfsetstrokecolor{currentstroke}%
+\pgfsetdash{}{0pt}%
+\pgfpathmoveto{\pgfqpoint{1.058116in}{1.186252in}}%
+\pgfpathcurveto{\pgfqpoint{1.304193in}{0.915224in}}{\pgfqpoint{1.624156in}{0.721882in}}{\pgfqpoint{1.978532in}{0.630077in}}%
+\pgfpathcurveto{\pgfqpoint{2.332908in}{0.538273in}}{\pgfqpoint{2.706499in}{0.551944in}}{\pgfqpoint{3.053218in}{0.669402in}}%
+\pgfpathlineto{\pgfqpoint{2.450000in}{2.450000in}}%
+\pgfpathlineto{\pgfqpoint{1.058116in}{1.186252in}}%
+\pgfpathclose%
+\pgfusepath{stroke,fill}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\pgfsetbuttcap%
+\pgfsetmiterjoin%
+\definecolor{currentfill}{rgb}{1.000000,0.733333,0.470588}%
+\pgfsetfillcolor{currentfill}%
+\pgfsetlinewidth{2.007500pt}%
+\definecolor{currentstroke}{rgb}{1.000000,1.000000,1.000000}%
+\pgfsetstrokecolor{currentstroke}%
+\pgfsetdash{}{0pt}%
+\pgfpathmoveto{\pgfqpoint{3.053218in}{0.669402in}}%
+\pgfpathcurveto{\pgfqpoint{3.490256in}{0.817459in}}{\pgfqpoint{3.857848in}{1.121358in}}{\pgfqpoint{4.085432in}{1.522767in}}%
+\pgfpathcurveto{\pgfqpoint{4.313017in}{1.924175in}}{\pgfqpoint{4.385037in}{2.395652in}}{\pgfqpoint{4.287670in}{2.846699in}}%
+\pgfpathlineto{\pgfqpoint{2.450000in}{2.450000in}}%
+\pgfpathlineto{\pgfqpoint{3.053218in}{0.669402in}}%
+\pgfpathclose%
+\pgfusepath{stroke,fill}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\pgfsetbuttcap%
+\pgfsetmiterjoin%
+\definecolor{currentfill}{rgb}{0.549020,0.337255,0.294118}%
+\pgfsetfillcolor{currentfill}%
+\pgfsetlinewidth{2.007500pt}%
+\definecolor{currentstroke}{rgb}{1.000000,1.000000,1.000000}%
+\pgfsetstrokecolor{currentstroke}%
+\pgfsetdash{}{0pt}%
+\pgfpathmoveto{\pgfqpoint{4.287670in}{2.846699in}}%
+\pgfpathcurveto{\pgfqpoint{4.240057in}{3.067261in}}{\pgfqpoint{4.153122in}{3.277460in}}{\pgfqpoint{4.031032in}{3.467220in}}%
+\pgfpathcurveto{\pgfqpoint{3.908943in}{3.656980in}}{\pgfqpoint{3.753681in}{3.823219in}}{\pgfqpoint{3.572691in}{3.957967in}}%
+\pgfpathlineto{\pgfqpoint{2.450000in}{2.450000in}}%
+\pgfpathlineto{\pgfqpoint{4.287670in}{2.846699in}}%
+\pgfpathclose%
+\pgfusepath{stroke,fill}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\pgfsetbuttcap%
+\pgfsetmiterjoin%
+\definecolor{currentfill}{rgb}{0.768627,0.611765,0.580392}%
+\pgfsetfillcolor{currentfill}%
+\pgfsetlinewidth{2.007500pt}%
+\definecolor{currentstroke}{rgb}{1.000000,1.000000,1.000000}%
+\pgfsetstrokecolor{currentstroke}%
+\pgfsetdash{}{0pt}%
+\pgfpathmoveto{\pgfqpoint{3.572691in}{3.957967in}}%
+\pgfpathcurveto{\pgfqpoint{3.411505in}{4.077971in}}{\pgfqpoint{3.232116in}{4.171359in}}{\pgfqpoint{3.041364in}{4.234570in}}%
+\pgfpathcurveto{\pgfqpoint{2.850612in}{4.297780in}}{\pgfqpoint{2.650953in}{4.330000in}}{\pgfqpoint{2.450000in}{4.330000in}}%
+\pgfpathlineto{\pgfqpoint{2.450000in}{2.450000in}}%
+\pgfpathlineto{\pgfqpoint{3.572691in}{3.957967in}}%
+\pgfpathclose%
+\pgfusepath{stroke,fill}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\pgfsetbuttcap%
+\pgfsetmiterjoin%
+\definecolor{currentfill}{rgb}{0.121569,0.466667,0.705882}%
+\pgfsetfillcolor{currentfill}%
+\pgfsetlinewidth{2.007500pt}%
+\definecolor{currentstroke}{rgb}{1.000000,1.000000,1.000000}%
+\pgfsetstrokecolor{currentstroke}%
+\pgfsetdash{}{0pt}%
+\pgfpathmoveto{\pgfqpoint{4.975000in}{3.128657in}}%
+\pgfpathlineto{\pgfqpoint{5.363889in}{3.128657in}}%
+\pgfpathlineto{\pgfqpoint{5.363889in}{3.264768in}}%
+\pgfpathlineto{\pgfqpoint{4.975000in}{3.264768in}}%
+\pgfpathlineto{\pgfqpoint{4.975000in}{3.128657in}}%
+\pgfpathclose%
+\pgfusepath{stroke,fill}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\definecolor{textcolor}{rgb}{0.000000,0.000000,0.000000}%
+\pgfsetstrokecolor{textcolor}%
+\pgfsetfillcolor{textcolor}%
+\pgftext[x=5.519444in,y=3.128657in,left,base]{\color{textcolor}{\sffamily\fontsize{14.000000}{16.800000}\selectfont\catcode`\^=\active\def^{\ifmmode\sp\else\^{}\fi}\catcode`\%=\active\def%{\%}lying (18.73 %)}}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\pgfsetbuttcap%
+\pgfsetmiterjoin%
+\definecolor{currentfill}{rgb}{0.682353,0.780392,0.909804}%
+\pgfsetfillcolor{currentfill}%
+\pgfsetlinewidth{2.007500pt}%
+\definecolor{currentstroke}{rgb}{1.000000,1.000000,1.000000}%
+\pgfsetstrokecolor{currentstroke}%
+\pgfsetdash{}{0pt}%
+\pgfpathmoveto{\pgfqpoint{4.975000in}{2.836990in}}%
+\pgfpathlineto{\pgfqpoint{5.363889in}{2.836990in}}%
+\pgfpathlineto{\pgfqpoint{5.363889in}{2.973101in}}%
+\pgfpathlineto{\pgfqpoint{4.975000in}{2.973101in}}%
+\pgfpathlineto{\pgfqpoint{4.975000in}{2.836990in}}%
+\pgfpathclose%
+\pgfusepath{stroke,fill}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\definecolor{textcolor}{rgb}{0.000000,0.000000,0.000000}%
+\pgfsetstrokecolor{textcolor}%
+\pgfsetfillcolor{textcolor}%
+\pgftext[x=5.519444in,y=2.836990in,left,base]{\color{textcolor}{\sffamily\fontsize{14.000000}{16.800000}\selectfont\catcode`\^=\active\def^{\ifmmode\sp\else\^{}\fi}\catcode`\%=\active\def%{\%}sitting (18.01 %)}}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\pgfsetbuttcap%
+\pgfsetmiterjoin%
+\definecolor{currentfill}{rgb}{1.000000,0.498039,0.054902}%
+\pgfsetfillcolor{currentfill}%
+\pgfsetlinewidth{2.007500pt}%
+\definecolor{currentstroke}{rgb}{1.000000,1.000000,1.000000}%
+\pgfsetstrokecolor{currentstroke}%
+\pgfsetdash{}{0pt}%
+\pgfpathmoveto{\pgfqpoint{4.975000in}{2.545323in}}%
+\pgfpathlineto{\pgfqpoint{5.363889in}{2.545323in}}%
+\pgfpathlineto{\pgfqpoint{5.363889in}{2.681434in}}%
+\pgfpathlineto{\pgfqpoint{4.975000in}{2.681434in}}%
+\pgfpathlineto{\pgfqpoint{4.975000in}{2.545323in}}%
+\pgfpathclose%
+\pgfusepath{stroke,fill}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\definecolor{textcolor}{rgb}{0.000000,0.000000,0.000000}%
+\pgfsetstrokecolor{textcolor}%
+\pgfsetfillcolor{textcolor}%
+\pgftext[x=5.519444in,y=2.545323in,left,base]{\color{textcolor}{\sffamily\fontsize{14.000000}{16.800000}\selectfont\catcode`\^=\active\def^{\ifmmode\sp\else\^{}\fi}\catcode`\%=\active\def%{\%}standing (18.47 %)}}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\pgfsetbuttcap%
+\pgfsetmiterjoin%
+\definecolor{currentfill}{rgb}{1.000000,0.733333,0.470588}%
+\pgfsetfillcolor{currentfill}%
+\pgfsetlinewidth{2.007500pt}%
+\definecolor{currentstroke}{rgb}{1.000000,1.000000,1.000000}%
+\pgfsetstrokecolor{currentstroke}%
+\pgfsetdash{}{0pt}%
+\pgfpathmoveto{\pgfqpoint{4.975000in}{2.253657in}}%
+\pgfpathlineto{\pgfqpoint{5.363889in}{2.253657in}}%
+\pgfpathlineto{\pgfqpoint{5.363889in}{2.389768in}}%
+\pgfpathlineto{\pgfqpoint{4.975000in}{2.389768in}}%
+\pgfpathlineto{\pgfqpoint{4.975000in}{2.253657in}}%
+\pgfpathclose%
+\pgfusepath{stroke,fill}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\definecolor{textcolor}{rgb}{0.000000,0.000000,0.000000}%
+\pgfsetstrokecolor{textcolor}%
+\pgfsetfillcolor{textcolor}%
+\pgftext[x=5.519444in,y=2.253657in,left,base]{\color{textcolor}{\sffamily\fontsize{14.000000}{16.800000}\selectfont\catcode`\^=\active\def^{\ifmmode\sp\else\^{}\fi}\catcode`\%=\active\def%{\%}walking (23.19 %)}}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\pgfsetbuttcap%
+\pgfsetmiterjoin%
+\definecolor{currentfill}{rgb}{0.549020,0.337255,0.294118}%
+\pgfsetfillcolor{currentfill}%
+\pgfsetlinewidth{2.007500pt}%
+\definecolor{currentstroke}{rgb}{1.000000,1.000000,1.000000}%
+\pgfsetstrokecolor{currentstroke}%
+\pgfsetdash{}{0pt}%
+\pgfpathmoveto{\pgfqpoint{4.975000in}{1.961990in}}%
+\pgfpathlineto{\pgfqpoint{5.363889in}{1.961990in}}%
+\pgfpathlineto{\pgfqpoint{5.363889in}{2.098101in}}%
+\pgfpathlineto{\pgfqpoint{4.975000in}{2.098101in}}%
+\pgfpathlineto{\pgfqpoint{4.975000in}{1.961990in}}%
+\pgfpathclose%
+\pgfusepath{stroke,fill}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\definecolor{textcolor}{rgb}{0.000000,0.000000,0.000000}%
+\pgfsetstrokecolor{textcolor}%
+\pgfsetfillcolor{textcolor}%
+\pgftext[x=5.519444in,y=1.961990in,left,base]{\color{textcolor}{\sffamily\fontsize{14.000000}{16.800000}\selectfont\catcode`\^=\active\def^{\ifmmode\sp\else\^{}\fi}\catcode`\%=\active\def%{\%}ascending stairs (11.43 %)}}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\pgfsetbuttcap%
+\pgfsetmiterjoin%
+\definecolor{currentfill}{rgb}{0.768627,0.611765,0.580392}%
+\pgfsetfillcolor{currentfill}%
+\pgfsetlinewidth{2.007500pt}%
+\definecolor{currentstroke}{rgb}{1.000000,1.000000,1.000000}%
+\pgfsetstrokecolor{currentstroke}%
+\pgfsetdash{}{0pt}%
+\pgfpathmoveto{\pgfqpoint{4.975000in}{1.670323in}}%
+\pgfpathlineto{\pgfqpoint{5.363889in}{1.670323in}}%
+\pgfpathlineto{\pgfqpoint{5.363889in}{1.806434in}}%
+\pgfpathlineto{\pgfqpoint{4.975000in}{1.806434in}}%
+\pgfpathlineto{\pgfqpoint{4.975000in}{1.670323in}}%
+\pgfpathclose%
+\pgfusepath{stroke,fill}%
+\end{pgfscope}%
+\begin{pgfscope}%
+\definecolor{textcolor}{rgb}{0.000000,0.000000,0.000000}%
+\pgfsetstrokecolor{textcolor}%
+\pgfsetfillcolor{textcolor}%
+\pgftext[x=5.519444in,y=1.670323in,left,base]{\color{textcolor}{\sffamily\fontsize{14.000000}{16.800000}\selectfont\catcode`\^=\active\def^{\ifmmode\sp\else\^{}\fi}\catcode`\%=\active\def%{\%}descending stairs (10.19 %)}}%
+\end{pgfscope}%
+\end{pgfpicture}%
+\makeatother%
+\endgroup%
