@@ -1,4 +1,5 @@
 import copy
+from typing import Sized
 
 from torch import nn
 from torch.utils.data import DataLoader
@@ -36,8 +37,37 @@ class ModelTrainer(BaseTrainer):
         self.best_weights = copy.deepcopy(self.model.state_dict())
         self.tracker = HistoryTracker()
 
+    def train_epoch(self) -> ModelSummary:
+        self.model.train()
+        correct = 0
+        total_loss = 0.0
+
+        for batch_index, (inputs, labels) in enumerate(self.train_loader):
+            inputs, labels = inputs.to(self.device), labels.to(self.device)
+
+            self.optimizer.zero_grad()
+            outputs = self.model(inputs)
+            loss = self.criterion(outputs, labels)
+            loss.backward()
+            self.optimizer.step()
+
+            total_loss += loss.item()
+            correct += (outputs.argmax(1) == labels).sum().item()
+
+        assert isinstance(self.train_loader.dataset, Sized)
+
+        return ModelSummary(
+            loss=total_loss / len(self.train_loader),
+            accuracy=100 * correct / len(self.train_loader.dataset),
+            f1_score=None
+        )
+
     def validate_epoch(self, epoch: int, train_summary: ModelSummary):
-        summary = evaluate(self.model, self.validation_loader, self.criterion, self.device)
+        summary = evaluate(
+            model=self.model,
+            evaluation_loader=self.validation_loader,
+            device=self.device
+        )
 
         if summary.accuracy > self.best_acc:
             self.best_acc = summary.accuracy
@@ -60,7 +90,7 @@ class ModelTrainer(BaseTrainer):
 
     def run(self) -> ModelSummary:
         for epoch in range(self.epochs):
-            train_summary = self.train_one_epoch()
+            train_summary = self.train_epoch()
             self.validate_epoch(epoch, train_summary)
 
         if self.load_best_weights:
@@ -74,7 +104,6 @@ class ModelTrainer(BaseTrainer):
         summary = evaluate(
             model=self.model,
             evaluation_loader=evaluation_loader,
-            criterion=self.criterion,
             device=self.device
         )
 
