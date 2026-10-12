@@ -15,10 +15,17 @@ from torch.utils.flop_counter import FlopCounterMode
 
 from src.data.pamap2_loader import load_pamap2_dataset
 from src.logging.train_logger import TrainLogger
+from src.paths import (
+    BENCHMARK_SUMMARY_PATH,
+    SUPERNET_TRAIN_TIME_LOGS,
+    SPOS_BEST_MODEL_PATH,
+    SPOS_RANDOM_BEST_MODEL_PATH,
+    BASELINE_BEST_MODEL_PATH,
+    TRAIN_HISTORY_DIR
+)
 from src.training.model_trainer import ModelTrainer
-from src.paths import BENCHMARK_SUMMARY_PATH, SUPERNET_TRAIN_TIME_LOGS
-from src.utils.model_io import load_spos_model, load_baseline_model
-from src.utils.optuna_io import get_spos_study, get_baseline_study
+from src.utils.model_io import load_best_model_from_study
+from src.utils.optuna_io import get_spos_study, get_baseline_study, get_constraint_spos_study
 
 
 @dataclass
@@ -156,6 +163,8 @@ def retrain_and_evaluate(
         n_runs: int = 5,
         epochs: int = 30,
         seed: int = 42,
+        save_model_path: Path | None = None,
+        save_history_path: Path | None = None,
         device: str = "cuda",
 ) -> tuple[tuple[float, float], tuple[float, float]]:
     accuracies = []
@@ -179,6 +188,15 @@ def retrain_and_evaluate(
         summary = trainer.run()
         accuracies.append(summary.accuracy)
         f1_scores.append(summary.f1_score)
+
+        if _seed == seed:
+            if save_model_path is not None:
+                os.makedirs(save_model_path.parent, exist_ok=True)
+                torch.save(model_copy.state_dict(), save_model_path)
+
+            if save_history_path is not None:
+                os.makedirs(save_history_path.parent, exist_ok=True)
+                pd.DataFrame(summary.history).to_csv(save_history_path, index=False)
 
     mean_acc, std_acc = float(np.mean(accuracies)), float(np.std(accuracies))
     mean_f1, std_f1 = float(np.mean(f1_scores)), float(np.std(f1_scores))
@@ -232,6 +250,20 @@ def benchmark(
     flops = count_flops(model, input_tensor)
     latency = measure_latency(model, input_tensor)
 
+    if method == "SPOS":
+        if random_search:
+            save_model_path = SPOS_RANDOM_BEST_MODEL_PATH
+            history_name = "SPOS_Random"
+        else:
+            save_model_path = SPOS_BEST_MODEL_PATH
+            history_name = "SPOS_NSGA-II"
+
+    else:
+        save_model_path = BASELINE_BEST_MODEL_PATH
+        history_name = "Baseline"
+
+    save_history_path = TRAIN_HISTORY_DIR / f"{history_name}_history.csv"
+
     (mean_acc, std_acc), (mean_f1, std_f1) = retrain_and_evaluate(
         model=model,
         n_runs=n_runs,
@@ -239,6 +271,8 @@ def benchmark(
         seed=42,
         dataset=dataset,
         device=device,
+        save_model_path=save_model_path,
+        save_history_path=save_history_path,
     )
 
     search_minutes = calculate_search_cost(method, random_search)
@@ -263,7 +297,8 @@ def benchmark(
 
 def benchmark_spos(random_search: bool = False, do_save: bool = True, device: str = "cuda"):
     dataset = load_pamap2_dataset()
-    model = load_spos_model(random_search=random_search)
+    study = get_spos_study(random_search=random_search)
+    model = load_best_model_from_study(study=study)
 
     benchmark_summary = benchmark(
         model=model,
@@ -277,10 +312,26 @@ def benchmark_spos(random_search: bool = False, do_save: bool = True, device: st
     if do_save:
         benchmark_summary.write_to_csv()
 
+def benchmark_constraint_spos(do_save: bool = True, device: str = "cuda"):
+    dataset = load_pamap2_dataset()
+    study = get_constraint_spos_study()
+    model = load_best_model_from_study(study=study)
+
+    benchmark_summary = benchmark(
+        model=model,
+        method="SPOS_10M",
+        dataset=dataset,
+        device=device,
+    )
+    benchmark_summary.print()
+
+    if do_save:
+        benchmark_summary.write_to_csv()
 
 def benchmark_baseline(do_save: bool = True, device: str = "cuda"):
     dataset = load_pamap2_dataset()
-    model = load_baseline_model()
+    study = get_baseline_study()
+    model = load_best_model_from_study(study=study)
 
     benchmark_summary = benchmark(
         model=model,
