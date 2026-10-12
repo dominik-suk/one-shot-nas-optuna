@@ -20,14 +20,14 @@ from src.utils.yaml_io import load_pamap2_search_space
 
 def load_model(state_dict_path: Path, db_path: Path) -> nn.Module:
     study = get_study(db_path)
-    model = load_best_model(study=study)
+    model = load_best_model_from_study(study=study)
     state_dict = torch.load(f=state_dict_path)
     model.load_state_dict(state_dict)
 
     return model
 
 
-def load_best_model(study: optuna.Study) -> nn.Module:
+def load_best_model_from_study(study: optuna.Study) -> nn.Module:
     search_space = load_pamap2_search_space()
     best_trial = study.best_trial
     best_architecture = Sampler(best_trial).construct_sample(search_space=search_space)
