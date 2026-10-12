@@ -1,15 +1,16 @@
-from src import analysis
 import matplotlib as mpl
+
+from src import analysis
+
 
 def analyze_spos(random_search: bool = False):
     analysis.benchmark_spos(random_search)
-    rk = analysis.conduct_rank_correlation(n=25)
-    rk.write_to_csv()
-    rk.print()
+
+    if not random_search:
+        analysis.plot_spos_nsga_versus_random()
 
     analysis.plot_spos_heatmap(random_search)
     analysis.plot_spos_learning_curve(random_search)
-    analysis.plot_spos_nsga_versus_random()
     analysis.plot_spos_bar_chart(
         random_search=random_search,
         do_save=True,
@@ -40,4 +41,5 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    analysis.benchmark_constraint_spos()
+    # main()
