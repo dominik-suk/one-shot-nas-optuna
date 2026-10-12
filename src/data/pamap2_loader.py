@@ -2,6 +2,7 @@ import os
 import time
 import urllib.request
 import zipfile
+from enum import Enum
 
 import numpy as np
 import pandas as pd
@@ -11,6 +12,12 @@ from tqdm import tqdm
 
 from src.data.pamap2_labels import Pamap2ActivityType
 from src.paths import PAMAP2_DIR, PAMAP2_DATA_LOADERS_DIR
+
+
+class Normalization(Enum):
+    GLOBAL = "global"
+    PER_WINDOW = "per_window"
+    HYBRID = "hybrid"
 
 
 class DownloadProgressBar(tqdm):
@@ -33,11 +40,15 @@ class Pamap2Dataset(Dataset):
             split: str,
             activity_type: Pamap2ActivityType,
             sequence_length: int,
+            normalization_method: Normalization = Normalization.PER_WINDOW,
+            mean: torch.Tensor | None = None,
+            std: torch.Tensor | None = None,
     ):
         self.split = split
         self.activity_type = activity_type
         self.sequence_length = sequence_length
         self.stride = sequence_length // 2
+        self.normalization_method = normalization_method
 
         self.valid_ids = sorted(activity_type.valid_ids)
         self.protocol_dir = PAMAP2_DIR / 'PAMAP2_Dataset' / 'Protocol'
@@ -54,6 +65,14 @@ class Pamap2Dataset(Dataset):
 
         self.features, self.labels = torch.load(self.data_loader_path, weights_only=True)
         self.num_windows = (len(self.features) - self.sequence_length) // self.stride + 1
+
+        if mean is None or std is None:
+            self.mean = self.features.mean(dim=0, keepdim=True)
+            self.std = self.features.std(dim=0, keepdim=True)
+            self.std[self.std == 0] = 1e-6
+        else:
+            self.mean = mean
+            self.std = std
 
     def __len__(self):
         return max(0, self.num_windows)
@@ -125,12 +144,22 @@ class Pamap2Dataset(Dataset):
 
         torch.save((features_tensor, labels_tensor), self.data_loader_path)
 
-    @staticmethod
-    def _normalize(x: np.ndarray):
-        mean = x.mean(axis=0, keepdims=True)
-        std = x.std(axis=0, keepdims=True)
-        std[std == 0] = 1e-6
-        return (x - mean) / std
+    def _normalize(self, x: torch.Tensor) -> torch.Tensor:
+        if self.normalization_method == Normalization.GLOBAL:
+            return (x - self.mean) / self.std
+
+        mean = x.mean(dim=0, keepdim=True)
+        if self.normalization_method == Normalization.PER_WINDOW:
+            std = x.std(dim=0, keepdim=True)
+            std[std == 0] = 1e-6
+
+            return (x - mean) / std
+
+        elif self.normalization_method == Normalization.HYBRID:
+            return (x - mean) / self.std
+
+        else:
+            return x
 
     @staticmethod
     def _interpolate_missing_heart_rate(df: pd.DataFrame) -> pd.DataFrame:
@@ -146,7 +175,7 @@ class Pamap2Dataset(Dataset):
         return df[df[1].isin(self.valid_ids)]
 
 
-def get_data(
+def load_pamap2_dataset(
         batch_size=64,
         activity_type: Pamap2ActivityType = Pamap2ActivityType.PROTOCOL,
         sequence_length=256
@@ -164,17 +193,21 @@ def get_data(
         split='validation',
         activity_type=activity_type,
         sequence_length=sequence_length,
+        mean=train_dataset.mean,
+        std=train_dataset.std
     )
 
     test_dataset = Pamap2Dataset(
         split='test',
         activity_type=activity_type,
         sequence_length=sequence_length,
+        mean=train_dataset.mean,
+        std=train_dataset.std
     )
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=4)
-    validation_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
-    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=4)
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=6, pin_memory=True, persistent_workers=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False, num_workers=6, pin_memory=True, persistent_workers=True)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=6, pin_memory=True, persistent_workers=True)
 
     return train_loader, validation_loader, test_loader
 
@@ -182,19 +215,19 @@ def get_data(
 if __name__ == '__main__':
     start_time = time.time()
 
-    get_data(
+    x = load_pamap2_dataset(
         batch_size=64,
         activity_type=Pamap2ActivityType.ALL,
         sequence_length=256
     )
 
-    get_data(
+    load_pamap2_dataset(
         batch_size=64,
         activity_type=Pamap2ActivityType.PROTOCOL,
         sequence_length=256
     )
 
-    get_data(
+    load_pamap2_dataset(
         batch_size=64,
         activity_type=Pamap2ActivityType.ADL,
         sequence_length=256
