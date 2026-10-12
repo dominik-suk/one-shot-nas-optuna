@@ -14,6 +14,8 @@ class ChoiceBlock(nn.Module):
             return x
         elif op_name == "maxpool":
             return F.max_pool1d(x, kernel_size=params["kernel_size"], stride=params["stride"])
+        elif op_name == "avgpool":
+            return F.avg_pool1d(x, kernel_size=params["kernel_size"], stride=params["stride"])
         elif op_name == "dropout":
             return F.dropout(x, p=params["p"], training=self.training)
         elif op_name == "gaussian_dropout":
@@ -29,7 +31,7 @@ class ChoiceBlock(nn.Module):
                     activation=params.get("activation", "relu"),
                     stride=params["stride"]
                 )
-            if isinstance(module, DynamicLSTM):
+            if isinstance(module, StaticLSTM):
                 return module(
                     x,
                     active_hidden_size=params["hidden_size"],
@@ -52,6 +54,14 @@ class ChoiceBlock(nn.Module):
         return x * (1.0 + torch.randn_like(x) * stddev)
 
 
+def apply_activation(x: torch.Tensor, activation: str):
+    if activation == "relu":
+        return torch.relu(x)
+    elif activation == "tanh":
+        return torch.tanh(x)
+    return x
+
+
 class DynamicConv1d(nn.Module):
     def __init__(self, max_channels: int, kernel_sizes: list[int]):
         super().__init__()
@@ -62,7 +72,7 @@ class DynamicConv1d(nn.Module):
                 in_channels=max_channels,
                 out_channels=max_channels,
                 kernel_size=kernel_size,
-                padding=kernel_size // 2
+                padding=kernel_size // 2,
             )
 
     def forward(self, x: torch.Tensor, active_out_channels: int, active_kernel_size: int,  activation: str | None, stride: int = 1):
@@ -70,30 +80,32 @@ class DynamicConv1d(nn.Module):
         conv = self.conv_dict[str(active_kernel_size)]
         weight = conv.weight[:active_out_channels, :active_in_channels, :]
         bias = conv.bias[:active_out_channels] if conv.bias is not None else None
-        padding = active_kernel_size // 2
+        padding = 0 if stride != 1 else active_kernel_size // 2
 
         x = F.conv1d(x, weight, bias=bias, stride=stride, padding=padding)
-        if activation == "relu":
-            return F.relu(x)
-        elif activation == "tanh":
-            return F.tanh(x)
+        x = apply_activation(x, activation)
+
         return x
 
 
-class DynamicLSTM(nn.Module):
-    def __init__(self, max_channels: int, max_hidden_size: int, max_num_layers: int):
+class StaticLSTM(nn.Module):
+    def __init__(self, max_channels: int, hidden_sizes: list[int], possible_num_layers: list[int]):
         super().__init__()
         self.max_channels = max_channels
-        self.max_hidden_size = max_hidden_size
-        self.lstm_layers = nn.ModuleList([
-            nn.LSTM(
-                input_size=max_channels if self._is_first_layer(i) else max_hidden_size * 2,
-                hidden_size=max_hidden_size,
-                num_layers=1,
-                bidirectional=True,
-                batch_first=True
-            ) for i in range(max_num_layers)
-        ])
+        self.lstm_dict = nn.ModuleDict()
+
+        for hidden_size in hidden_sizes:
+            for layer in range(max(possible_num_layers)):
+                in_channels = max_channels if layer == 0 else 2* hidden_size
+                key = self._get_key(hidden_size, layer)
+
+                self.lstm_dict[key] = nn.LSTM(
+                    input_size=in_channels,
+                    hidden_size=hidden_size,
+                    num_layers=1,
+                    bidirectional=True,
+                    batch_first=True
+                )
 
     def forward(self, x: torch.Tensor, active_hidden_size: int, num_layers: int, bidirectional: bool):
         # x: [Batch, Channels, Length]
@@ -103,37 +115,24 @@ class DynamicLSTM(nn.Module):
             difference = self.max_channels - input_size
             x = F.pad(x, (0, 0, 0, difference))
 
-        # x: [Batch, Length, Channels]
         x = x.transpose(1, 2)
+        # x: [Batch, Length, Channels]
 
-        for i in range(num_layers):
-            x, _ = self.lstm_layers[i](x)
+        for layer in range(num_layers):
+            key = self._get_key(active_hidden_size, layer)
+            x, _ = self.lstm_dict[key](x)
 
-            if not self._is_last_layer(i, num_layers) and not bidirectional:
-                x = self._fill_backward_direction_with_zeros(x)
+        if not bidirectional:
+            x = x[:, :, :active_hidden_size]
 
-        forward = x[:, :, :active_hidden_size]
-        backward = x[:, :, self.max_hidden_size : self.max_hidden_size + active_hidden_size]
-
-        if bidirectional:
-            x = torch.cat([forward, backward], dim=2)
-        else:
-            x = forward
-
+        x = x.transpose(1, 2)
         # x: [Batch, Channels, Length]
-        return x.transpose(1, 2)
+
+        return x
 
     @staticmethod
-    def _is_last_layer(i, num_layers) -> bool:
-        return i >= num_layers - 1
-
-    @staticmethod
-    def _is_first_layer(i) -> bool:
-        return i == 0
-
-    def _fill_backward_direction_with_zeros(self, x):
-        forward = x[:, :, :self.max_hidden_size]
-        return F.pad(forward, (0, self.max_hidden_size))
+    def _get_key(h, l) -> str:
+        return f"h{h}l{l}"
 
 
 class DynamicLinear(nn.Module):
@@ -149,18 +148,17 @@ class DynamicLinear(nn.Module):
         active_in_features = x.shape[1]
         weight = self.linear.weight[:active_out_features, :active_in_features]
         bias = self.linear.bias[:active_out_features] if self.linear.bias is not None else None
-        x = F.linear(x, weight, bias=bias)
 
-        if activation == "relu":
-            return F.relu(x)
-        elif activation == "tanh":
-            return F.tanh(x)
-        else:
-            return x
+        x = F.linear(x, weight, bias=bias)
+        x = apply_activation(x, activation)
+
+        return x
 
     @staticmethod
     def _flatten(x: torch.Tensor):
+        # x: [Batch, Features, Sequence]
         if x.dim() == 3:
-            x = x.mean(dim=-1)
+            x = x.mean(dim=2)
+            # return x[:, :, -1]
 
         return x
