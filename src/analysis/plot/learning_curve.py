@@ -4,13 +4,15 @@ from pathlib import Path
 import pandas as pd
 from matplotlib import pyplot as plt
 from torch import nn
+from torch.utils.data import DataLoader
 
+from src.data.pamap2_loader import load_pamap2_dataset
 from src.logging.train_logger import TrainLogger
-from src.models.train_model import train
 from src.paths import TRAIN_HISTORY_DIR, GRAPHS_DIR
-from src.utils.model_io import load_spos_model, load_best_model
-from src.utils.plot_io import safe_save
+from src.training.model_trainer import ModelTrainer
+from src.utils.model_io import load_best_model_from_study
 from src.utils.optuna_io import get_spos_study, get_baseline_study
+from src.utils.plot_io import safe_save
 
 
 def plot_learning_curve(
@@ -71,6 +73,7 @@ def load_from_csv(path: Path) -> dict:
 def get_history_from_model(
         model: nn.Module,
         model_name: str,
+        dataset: tuple[DataLoader, DataLoader, DataLoader],
         epochs: int,
         device: str = "cuda",
         do_save: bool = True,
@@ -82,13 +85,17 @@ def get_history_from_model(
         history = load_from_csv(csv_path)
         return history
 
-    summary = train(
+    trainer = ModelTrainer(
         model=model,
         epochs=epochs,
+        dataset=dataset,
         device=device,
-        retraining_best_model=True,
-        logger=TrainLogger()
+        logger=TrainLogger(),
+        load_best_weights=True,
+        evaluate_on_test_set=True
     )
+
+    summary = trainer.run()
 
     if do_save:
         save_to_csv(summary.history, csv_path)
@@ -98,15 +105,38 @@ def get_history_from_model(
 
 def plot_spos_learning_curve(random_search: bool = False):
     study = get_spos_study(random_search)
-    model = load_best_model(study)
+    dataset = load_pamap2_dataset()
+    model = load_best_model_from_study(study)
     model_name = "SPOS Random" if random_search else "SPOS NSGA-II"
-    train_history = get_history_from_model(model=model, model_name=model_name, epochs=50, device="cuda", load_existing=False)
-    plot_learning_curve(history=train_history, model_name=model_name, do_show=True, do_save=True)
+    train_history = get_history_from_model(
+        model=model,
+        model_name=model_name,
+        dataset=dataset,
+        epochs=50,
+        device="cuda",
+        load_existing=True,
+        do_save=True,
+    )
+    plot_learning_curve(
+        history=train_history,
+        model_name=model_name,
+        do_show=True,
+        do_save=True
+    )
 
 
 def plot_baseline_learning_curve():
     study = get_baseline_study()
-    model = load_best_model(study)
+    dataset = load_pamap2_dataset()
+    model = load_best_model_from_study(study)
     model_name = "Baseline"
-    train_history = get_history_from_model(model=model, model_name=model_name, epochs=50, device="cuda", load_existing=False)
+    train_history = get_history_from_model(
+        model=model,
+        model_name=model_name,
+        dataset=dataset,
+        epochs=50,
+        device="cuda",
+        load_existing=True,
+        do_save=True,
+    )
     plot_learning_curve(history=train_history, model_name=model_name, do_show=True, do_save=True)
