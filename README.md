@@ -1,8 +1,6 @@
 # One-Shot NAS with Optuna
 
-This software implements [Single Path One-Shot](https://arxiv.org/abs/1904.00420) weight-sharing NAS algorithm by Guo et al. with [Optuna](https://optuna.org) and using the [elasticAI.explorer](https://arxiv.org/abs/2605.30019) hardware NAS toolbox for the thesis titled 'Implementation and Evaluation of a
-One-Shot Supernet Approach for Neural
-Architecture Search'.
+This software implements [Single Path One-Shot](https://arxiv.org/abs/1904.00420) weight-sharing NAS algorithm by Guo et al. with [Optuna](https://optuna.org) and using the [elasticAI.explorer](https://arxiv.org/abs/2605.30019) hardware NAS toolbox for the thesis titled '[Implementation and Evaluation of a One-Shot Supernet Approach for Neural Architecture Search](https://zenodo.org/records/24195353)'.
 
 ## Installation
 
